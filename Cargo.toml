@@ -1,0 +1,12 @@
+[package]
+name = "surgeist-retained"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/bj-data-eng/surgeist-retained"
+readme = "README.md"
+description = "Retained semantic UI model boundary for Surgeist."
+
+[lib]
+name = "surgeist_retained"
+path = "src/lib.rs"
