@@ -20,6 +20,11 @@ impl<'a> Snapshot<'a> {
     }
 
     #[must_use]
+    pub fn revision(&self) -> u64 {
+        self.model.revision()
+    }
+
+    #[must_use]
     pub fn get(&self, id: Id) -> Option<NodeRef<'_>> {
         self.model.node(id).ok().map(|node| NodeRef { node })
     }

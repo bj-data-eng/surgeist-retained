@@ -115,8 +115,21 @@ impl Transaction {
     }
 
     pub(crate) fn commit(self, model: &mut Model) -> Report {
+        if !self.changes.is_empty() || self.dirty_slot_state_changed(model) {
+            model.revision += 1;
+        }
         model.changes.merge(self.changes.clone());
         Report::with_commands(self.changes, self.commands)
+    }
+
+    fn dirty_slot_state_changed(&self, model: &Model) -> bool {
+        self.journal.entries.iter().any(|entry| {
+            matches!(
+                entry,
+                Undo::DirtySlot { slot, was_dirty }
+                    if model.dirty_slots.contains(slot) != *was_dirty
+            )
+        })
     }
 
     pub(crate) fn rollback(self, model: &mut Model) {

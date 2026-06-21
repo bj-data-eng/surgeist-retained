@@ -767,6 +767,187 @@ fn event_routing_emits_commands() {
 }
 
 #[test]
+fn revision_tracks_snapshot_observable_changes() {
+    let command = CommandName::new("project.run").unwrap();
+    let button =
+        element("button", "run").with_hook(Hook::new(Trigger::Event(EventKind::Click), command));
+    let mut model = Model::new(Element::root().with_child(button)).unwrap();
+    let initial_revision = model.revision();
+    assert_eq!(model.snapshot().revision(), initial_revision);
+
+    let target = model
+        .snapshot()
+        .children(model.root())
+        .unwrap()
+        .next()
+        .unwrap();
+
+    model
+        .dispatch(Event::new(target, EventKind::Click))
+        .unwrap();
+    assert_eq!(model.revision(), initial_revision);
+
+    model
+        .apply(Patch::SetText {
+            id: target,
+            text: Some(text("Run")),
+        })
+        .unwrap();
+    let text_revision = model.revision();
+    assert!(text_revision > initial_revision);
+    assert_eq!(model.snapshot().revision(), text_revision);
+
+    model
+        .apply(Patch::SetText {
+            id: target,
+            text: Some(text("Run")),
+        })
+        .unwrap();
+    assert_eq!(model.revision(), text_revision);
+
+    model.focus(Some(target)).unwrap();
+    let focus_revision = model.revision();
+    assert!(focus_revision > text_revision);
+    assert_eq!(model.snapshot().revision(), focus_revision);
+
+    model.focus(Some(target)).unwrap();
+    assert_eq!(model.revision(), focus_revision);
+
+    let pointer = PointerId::new(1);
+    model
+        .capture_pointer(PointerCapture::new(pointer, target))
+        .unwrap();
+    let capture_revision = model.revision();
+    assert!(capture_revision > focus_revision);
+
+    model
+        .capture_pointer(PointerCapture::new(pointer, target))
+        .unwrap();
+    assert_eq!(model.revision(), capture_revision);
+
+    let slot = ProjectionSlot::default(model.root());
+    let projection_source = ProjectionSource::Elements(vec![element("button", "projected")]);
+    model
+        .apply_projection(ProjectionEdit::new(
+            slot.clone(),
+            projection_source.clone(),
+            ReplaceMode::PreserveCompatible,
+        ))
+        .unwrap();
+    let dirty_revision = model.revision();
+    assert!(dirty_revision > capture_revision);
+    assert_eq!(model.snapshot().revision(), dirty_revision);
+
+    model.resolve_projection(slot.clone()).unwrap();
+    let resolved_revision = model.revision();
+    assert!(resolved_revision > dirty_revision);
+    assert_eq!(model.snapshot().revision(), resolved_revision);
+
+    model
+        .apply_projection(ProjectionEdit::new(
+            slot.clone(),
+            projection_source,
+            ReplaceMode::PreserveCompatible,
+        ))
+        .unwrap();
+    model.resolve_projection(slot).unwrap();
+    assert_eq!(model.revision(), resolved_revision);
+}
+
+#[test]
+fn revision_advances_when_projection_resolution_only_clears_dirty_slot() {
+    let mut model = Model::empty();
+    let slot = ProjectionSlot::default(model.root());
+    let initial_revision = model.revision();
+
+    model
+        .apply_projection(ProjectionEdit::new(
+            slot.clone(),
+            ProjectionSource::Elements(Vec::new()),
+            ReplaceMode::PreserveCompatible,
+        ))
+        .unwrap();
+    let dirty_revision = model.revision();
+    assert!(dirty_revision > initial_revision);
+    assert_eq!(
+        model.snapshot().dirty_slots().collect::<Vec<_>>(),
+        vec![slot.clone()]
+    );
+
+    let report = model.resolve_projection(slot.clone()).unwrap();
+    assert!(report.changes().is_empty());
+    let resolved_revision = model.revision();
+    assert!(resolved_revision > dirty_revision);
+    assert!(
+        model
+            .snapshot()
+            .dirty_slots()
+            .collect::<Vec<_>>()
+            .is_empty()
+    );
+
+    model.resolve_projection(slot).unwrap();
+    assert_eq!(model.revision(), resolved_revision);
+}
+
+#[test]
+fn revision_ignores_move_to_current_effective_position() {
+    let mut model = Model::new(
+        Element::root()
+            .with_child(element("button", "a"))
+            .with_child(element("button", "b"))
+            .with_child(element("button", "c")),
+    )
+    .unwrap();
+    let root = model.root();
+    let children = model.snapshot().children(root).unwrap().collect::<Vec<_>>();
+    let initial_revision = model.revision();
+
+    let report = model
+        .apply(Patch::Move {
+            id: children[1],
+            parent: root,
+            index: 2,
+        })
+        .unwrap();
+
+    assert!(report.changes().is_empty());
+    assert_eq!(model.revision(), initial_revision);
+    assert_eq!(
+        model.snapshot().children(root).unwrap().collect::<Vec<_>>(),
+        children
+    );
+}
+
+#[test]
+fn revision_ignores_reorder_children_to_existing_order() {
+    let mut model = Model::new(
+        Element::root()
+            .with_child(element("button", "a"))
+            .with_child(element("button", "b"))
+            .with_child(element("button", "c")),
+    )
+    .unwrap();
+    let root = model.root();
+    let children = model.snapshot().children(root).unwrap().collect::<Vec<_>>();
+    let initial_revision = model.revision();
+
+    let report = model
+        .apply(Patch::ReorderChildren {
+            parent: root,
+            children: children.clone(),
+        })
+        .unwrap();
+
+    assert!(report.changes().is_empty());
+    assert_eq!(model.revision(), initial_revision);
+    assert_eq!(
+        model.snapshot().children(root).unwrap().collect::<Vec<_>>(),
+        children
+    );
+}
+
+#[test]
 fn repeated_attribute_and_state_patches_are_precise_noops() {
     let mut model = Model::new(Element::root().with_child(element("button", "run"))).unwrap();
     let target = model

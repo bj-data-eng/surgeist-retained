@@ -18,6 +18,7 @@ pub struct Model {
     pub(crate) dirty_slots: BTreeSet<ProjectionSlot>,
     pub(crate) virtual_anchors: BTreeMap<(ProjectionSlot, Key), State>,
     pub(crate) changes: ChangeSet,
+    pub(crate) revision: u64,
     #[cfg(test)]
     pub(crate) failpoint: Option<Failpoint>,
 }
@@ -39,6 +40,11 @@ impl Model {
     #[must_use]
     pub const fn root(&self) -> Id {
         self.root
+    }
+
+    #[must_use]
+    pub const fn revision(&self) -> u64 {
+        self.revision
     }
 
     #[must_use]
@@ -451,6 +457,7 @@ impl Model {
             dirty_slots: BTreeSet::new(),
             virtual_anchors: BTreeMap::new(),
             changes: ChangeSet::new(),
+            revision: 0,
             #[cfg(test)]
             failpoint: None,
         }
@@ -688,17 +695,20 @@ impl Model {
                 }
                 let key = self.node(id)?.element.key().cloned();
                 self.ensure_unique_child_key(parent, key.as_ref(), Some(id))?;
+                let insert_index = if old_parent == parent && index > old_index {
+                    index - 1
+                } else {
+                    index
+                };
+                if old_parent == parent && insert_index == old_index {
+                    return Ok(ChangeSet::new());
+                }
                 transaction.record_node(self, old_parent);
                 transaction.record_node(self, parent);
                 transaction.record_node(self, id);
                 self.node_mut(old_parent)?
                     .children
                     .retain(|child| *child != id);
-                let insert_index = if old_parent == parent && index > old_index {
-                    index - 1
-                } else {
-                    index
-                };
                 if insert_index > self.node(parent)?.children.len() {
                     return Err(Error::new(
                         ErrorCode::InvalidIndex,
@@ -726,6 +736,9 @@ impl Model {
                         ErrorCode::InvalidPatch,
                         "reorder must contain the existing child set",
                     ));
+                }
+                if children == existing {
+                    return Ok(ChangeSet::new());
                 }
                 transaction.record_node(self, parent);
                 self.node_mut(parent)?.children = children;
