@@ -594,6 +594,39 @@ fn projection_resolution_rolls_back_after_failure_injection() {
 }
 
 #[test]
+fn failed_projection_resolution_preserves_revision() {
+    let mut model = Model::empty();
+    let slot = ProjectionSlot::default(model.root());
+
+    model
+        .apply_projection(ProjectionEdit::new(
+            slot.clone(),
+            ProjectionSource::Elements(vec![element("button", "old")]),
+            ProjectionReplaceMode::PreserveCompatible,
+        ))
+        .unwrap();
+    model.resolve_projection(slot.clone()).unwrap();
+
+    model
+        .apply_projection(ProjectionEdit::new(
+            slot.clone(),
+            ProjectionSource::Elements(vec![element("button", "new")]),
+            ProjectionReplaceMode::PreserveCompatible,
+        ))
+        .unwrap();
+    let before_failure = model.revision();
+
+    model.set_failpoint(Failpoint::BeforeProjectionCacheInsert);
+    assert_eq!(
+        model.resolve_projection(slot).unwrap_err().code(),
+        ErrorCode::UnsupportedFeature
+    );
+    model.clear_failpoint();
+
+    assert_eq!(model.revision(), before_failure);
+}
+
+#[test]
 fn projection_reuse_failure_restores_reused_node() {
     let mut model = Model::empty();
     let slot = ProjectionSlot::default(model.root());
