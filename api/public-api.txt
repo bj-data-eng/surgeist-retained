@@ -447,30 +447,22 @@ impl surgeist_retained::SourceRevision
 pub const fn surgeist_retained::SourceRevision::get(self) -> u64
 pub const fn surgeist_retained::SourceRevision::new(value: u64) -> Self
 #[non_exhaustive] pub struct surgeist_retained::State
-pub surgeist_retained::State::active: bool
-pub surgeist_retained::State::checked: core::option::Option<bool>
-pub surgeist_retained::State::disabled: bool
-pub surgeist_retained::State::expanded: core::option::Option<bool>
-pub surgeist_retained::State::focus_within: bool
-pub surgeist_retained::State::focused: bool
-pub surgeist_retained::State::hovered: bool
-pub surgeist_retained::State::pointer_captured: bool
-pub surgeist_retained::State::presence: surgeist_retained::Presence
-pub surgeist_retained::State::pressed: bool
-pub surgeist_retained::State::selected: bool
 impl surgeist_retained::State
+pub const fn surgeist_retained::State::active(&self) -> bool
+pub const fn surgeist_retained::State::checked(&self) -> core::option::Option<bool>
+pub const fn surgeist_retained::State::disabled(&self) -> bool
 pub fn surgeist_retained::State::durable_anchor(&self) -> Self
+pub const fn surgeist_retained::State::expanded(&self) -> core::option::Option<bool>
+pub const fn surgeist_retained::State::focus_within(&self) -> bool
+pub const fn surgeist_retained::State::focused(&self) -> bool
+pub const fn surgeist_retained::State::hovered(&self) -> bool
+pub const fn surgeist_retained::State::pointer_captured(&self) -> bool
+pub const fn surgeist_retained::State::presence(&self) -> surgeist_retained::Presence
+pub const fn surgeist_retained::State::pressed(&self) -> bool
+pub const fn surgeist_retained::State::selected(&self) -> bool
 impl core::default::Default for surgeist_retained::State
 pub fn surgeist_retained::State::default() -> Self
 pub struct surgeist_retained::StatePatch
-pub surgeist_retained::StatePatch::active: core::option::Option<bool>
-pub surgeist_retained::StatePatch::checked: core::option::Option<core::option::Option<bool>>
-pub surgeist_retained::StatePatch::disabled: core::option::Option<bool>
-pub surgeist_retained::StatePatch::expanded: core::option::Option<core::option::Option<bool>>
-pub surgeist_retained::StatePatch::hovered: core::option::Option<bool>
-pub surgeist_retained::StatePatch::presence: core::option::Option<surgeist_retained::Presence>
-pub surgeist_retained::StatePatch::pressed: core::option::Option<bool>
-pub surgeist_retained::StatePatch::selected: core::option::Option<bool>
 impl surgeist_retained::StatePatch
 pub fn surgeist_retained::StatePatch::checked(self, checked: core::option::Option<bool>) -> Self
 pub fn surgeist_retained::StatePatch::disabled(self, disabled: bool) -> Self

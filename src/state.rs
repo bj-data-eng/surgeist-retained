@@ -3,17 +3,17 @@ use super::Id;
 #[non_exhaustive]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct State {
-    pub presence: Presence,
-    pub disabled: bool,
-    pub hovered: bool,
-    pub active: bool,
-    pub focused: bool,
-    pub focus_within: bool,
-    pub pointer_captured: bool,
-    pub selected: bool,
-    pub pressed: bool,
-    pub checked: Option<bool>,
-    pub expanded: Option<bool>,
+    pub(crate) presence: Presence,
+    pub(crate) disabled: bool,
+    pub(crate) hovered: bool,
+    pub(crate) active: bool,
+    pub(crate) focused: bool,
+    pub(crate) focus_within: bool,
+    pub(crate) pointer_captured: bool,
+    pub(crate) selected: bool,
+    pub(crate) pressed: bool,
+    pub(crate) checked: Option<bool>,
+    pub(crate) expanded: Option<bool>,
 }
 
 impl Default for State {
@@ -35,6 +35,61 @@ impl Default for State {
 }
 
 impl State {
+    #[must_use]
+    pub const fn presence(&self) -> Presence {
+        self.presence
+    }
+
+    #[must_use]
+    pub const fn disabled(&self) -> bool {
+        self.disabled
+    }
+
+    #[must_use]
+    pub const fn hovered(&self) -> bool {
+        self.hovered
+    }
+
+    #[must_use]
+    pub const fn active(&self) -> bool {
+        self.active
+    }
+
+    #[must_use]
+    pub const fn focused(&self) -> bool {
+        self.focused
+    }
+
+    #[must_use]
+    pub const fn focus_within(&self) -> bool {
+        self.focus_within
+    }
+
+    #[must_use]
+    pub const fn pointer_captured(&self) -> bool {
+        self.pointer_captured
+    }
+
+    #[must_use]
+    pub const fn selected(&self) -> bool {
+        self.selected
+    }
+
+    #[must_use]
+    pub const fn pressed(&self) -> bool {
+        self.pressed
+    }
+
+    #[must_use]
+    pub const fn checked(&self) -> Option<bool> {
+        self.checked
+    }
+
+    #[must_use]
+    pub const fn expanded(&self) -> Option<bool> {
+        self.expanded
+    }
+
     #[must_use]
     pub fn durable_anchor(&self) -> Self {
         Self {
@@ -60,17 +115,8 @@ impl State {
         if let Some(value) = patch.disabled {
             self.disabled = value;
         }
-        if let Some(value) = patch.hovered {
-            self.hovered = value;
-        }
-        if let Some(value) = patch.active {
-            self.active = value;
-        }
         if let Some(value) = patch.selected {
             self.selected = value;
-        }
-        if let Some(value) = patch.pressed {
-            self.pressed = value;
         }
         if let Some(value) = patch.checked {
             self.checked = value;
@@ -105,16 +151,35 @@ pub enum StateFlag {
     Expanded,
 }
 
+/// Application-authored retained state changes.
+///
+/// Use builder methods so only app-mutable state can be authored through
+/// `Patch::SetState`.
+///
+/// ```compile_fail
+/// use surgeist_retained::StatePatch;
+///
+/// let _patch = StatePatch {
+///     selected: Some(true),
+///     ..StatePatch::new()
+/// };
+/// ```
+///
+/// ```compile_fail
+/// use surgeist_retained::StatePatch;
+///
+/// let _patch = StatePatch {
+///     hovered: Some(true),
+///     ..StatePatch::new()
+/// };
+/// ```
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct StatePatch {
-    pub presence: Option<Presence>,
-    pub disabled: Option<bool>,
-    pub hovered: Option<bool>,
-    pub active: Option<bool>,
-    pub selected: Option<bool>,
-    pub pressed: Option<bool>,
-    pub checked: Option<Option<bool>>,
-    pub expanded: Option<Option<bool>>,
+    presence: Option<Presence>,
+    disabled: Option<bool>,
+    selected: Option<bool>,
+    checked: Option<Option<bool>>,
+    expanded: Option<Option<bool>>,
 }
 
 impl StatePatch {

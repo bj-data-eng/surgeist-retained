@@ -413,7 +413,7 @@ fn projection_replace_modes_control_identity_preservation() {
         .next()
         .unwrap();
     assert_ne!(preserved, reset);
-    assert!(!model.snapshot().get(reset).unwrap().state().selected);
+    assert!(!model.snapshot().get(reset).unwrap().state().selected());
 }
 
 #[test]
@@ -743,7 +743,7 @@ fn virtual_projection_materializes_only_supplied_items_and_preserves_state_ancho
             .get(rematerialized)
             .unwrap()
             .state()
-            .selected
+            .selected()
     );
 }
 
@@ -1025,11 +1025,44 @@ fn state_patch_updates_only_app_mutable_state() {
 
     let snapshot = model.snapshot();
     let state = snapshot.get(target).unwrap().state();
-    assert!(state.focused);
-    assert!(!state.focus_within);
-    assert!(state.pointer_captured);
-    assert!(state.selected);
-    assert_eq!(state.checked, Some(true));
+    assert!(state.focused());
+    assert!(!state.focus_within());
+    assert!(state.pointer_captured());
+    assert!(state.selected());
+    assert_eq!(state.checked(), Some(true));
+}
+
+#[test]
+fn state_patch_builder_exposes_only_app_mutable_state() {
+    let mut model = Model::new(Element::root().with_child(element("button", "run"))).unwrap();
+    let target = model
+        .snapshot()
+        .children(model.root())
+        .unwrap()
+        .next()
+        .unwrap();
+
+    let patch = StatePatch::new()
+        .selected(true)
+        .presence(Presence::Hidden)
+        .disabled(true)
+        .checked(Some(true))
+        .expanded(Some(false));
+
+    model
+        .apply(Patch::SetState {
+            id: target,
+            state: patch,
+        })
+        .unwrap();
+
+    let snapshot = model.snapshot();
+    let state = snapshot.get(target).unwrap().state();
+    assert!(state.selected());
+    assert_eq!(state.presence(), Presence::Hidden);
+    assert!(state.disabled());
+    assert_eq!(state.checked(), Some(true));
+    assert_eq!(state.expanded(), Some(false));
 }
 
 #[test]
@@ -1052,17 +1085,17 @@ fn pointer_capture_state_is_aggregate() {
 
     model.capture_pointer(PointerCapture::new(p1, a)).unwrap();
     model.capture_pointer(PointerCapture::new(p2, a)).unwrap();
-    assert!(model.snapshot().get(a).unwrap().state().pointer_captured);
+    assert!(model.snapshot().get(a).unwrap().state().pointer_captured());
 
     model.release_pointer(p1).unwrap();
-    assert!(model.snapshot().get(a).unwrap().state().pointer_captured);
+    assert!(model.snapshot().get(a).unwrap().state().pointer_captured());
 
     model.capture_pointer(PointerCapture::new(p2, b)).unwrap();
-    assert!(!model.snapshot().get(a).unwrap().state().pointer_captured);
-    assert!(model.snapshot().get(b).unwrap().state().pointer_captured);
+    assert!(!model.snapshot().get(a).unwrap().state().pointer_captured());
+    assert!(model.snapshot().get(b).unwrap().state().pointer_captured());
 
     model.release_pointer(p2).unwrap();
-    assert!(!model.snapshot().get(b).unwrap().state().pointer_captured);
+    assert!(!model.snapshot().get(b).unwrap().state().pointer_captured());
 }
 
 #[test]
