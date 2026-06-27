@@ -7,6 +7,32 @@ use super::{
     Result, Route, RouteStep, State, VirtualProjection, transaction::Transaction,
 };
 
+/// Monotonic retained model revision for snapshot cache identity.
+///
+/// The value advances after committed snapshot-observable changes.
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct ModelRevision(u64);
+
+impl ModelRevision {
+    /// Creates a revision from a raw value for cache adapters and tests.
+    ///
+    /// Model advancement is still owned by `Model`.
+    #[must_use]
+    pub const fn new(value: u64) -> Self {
+        Self(value)
+    }
+
+    /// Returns the raw revision value for cache adapters, serialization, and test assertions.
+    #[must_use]
+    pub const fn get(self) -> u64 {
+        self.0
+    }
+
+    pub(crate) fn advance(&mut self) {
+        self.0 = self.0.checked_add(1).expect("model revision overflow");
+    }
+}
+
 #[derive(Debug)]
 pub struct Model {
     pub(crate) nodes: Vec<Option<Node>>,
@@ -18,7 +44,7 @@ pub struct Model {
     pub(crate) dirty_slots: BTreeSet<ProjectionSlot>,
     pub(crate) virtual_anchors: BTreeMap<(ProjectionSlot, Key), State>,
     pub(crate) changes: ChangeSet,
-    pub(crate) revision: u64,
+    pub(crate) revision: ModelRevision,
     #[cfg(test)]
     pub(crate) failpoint: Option<Failpoint>,
 }
@@ -43,7 +69,7 @@ impl Model {
     }
 
     #[must_use]
-    pub const fn revision(&self) -> u64 {
+    pub const fn revision(&self) -> ModelRevision {
         self.revision
     }
 
@@ -457,7 +483,7 @@ impl Model {
             dirty_slots: BTreeSet::new(),
             virtual_anchors: BTreeMap::new(),
             changes: ChangeSet::new(),
-            revision: 0,
+            revision: ModelRevision::new(0),
             #[cfg(test)]
             failpoint: None,
         }

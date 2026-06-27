@@ -116,7 +116,7 @@ impl Transaction {
 
     pub(crate) fn commit(self, model: &mut Model) -> Report {
         if !self.changes.is_empty() || self.dirty_slot_state_changed(model) {
-            model.revision += 1;
+            model.revision.advance();
         }
         model.changes.merge(self.changes.clone());
         Report::with_commands(self.changes, self.commands)

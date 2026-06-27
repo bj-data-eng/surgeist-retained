@@ -353,11 +353,15 @@ pub fn surgeist_retained::Model::new(root: surgeist_retained::Element) -> surgei
 pub fn surgeist_retained::Model::release_pointer(&mut self, pointer: surgeist_retained::PointerId) -> surgeist_retained::Result<surgeist_retained::Report>
 pub fn surgeist_retained::Model::resolve_dirty_projections(&mut self) -> surgeist_retained::Result<surgeist_retained::Report>
 pub fn surgeist_retained::Model::resolve_projection(&mut self, slot: surgeist_retained::ProjectionSlot) -> surgeist_retained::Result<surgeist_retained::Report>
-pub const fn surgeist_retained::Model::revision(&self) -> u64
+pub const fn surgeist_retained::Model::revision(&self) -> surgeist_retained::ModelRevision
 pub const fn surgeist_retained::Model::root(&self) -> surgeist_retained::Id
 pub fn surgeist_retained::Model::route(&self, event: surgeist_retained::Event) -> surgeist_retained::Result<surgeist_retained::Route>
 pub fn surgeist_retained::Model::snapshot(&self) -> surgeist_retained::Snapshot<'_>
 pub fn surgeist_retained::Model::take_changes(&mut self) -> surgeist_retained::ChangeSet
+pub struct surgeist_retained::ModelRevision(_)
+impl surgeist_retained::ModelRevision
+pub const fn surgeist_retained::ModelRevision::get(self) -> u64
+pub const fn surgeist_retained::ModelRevision::new(value: u64) -> Self
 pub struct surgeist_retained::Mutation
 impl surgeist_retained::Mutation
 pub fn surgeist_retained::Mutation::edits(&self) -> &[surgeist_retained::MutationEdit]
@@ -442,7 +446,7 @@ pub fn surgeist_retained::Snapshot<'a>::hooks(&self, id: surgeist_retained::Id) 
 pub fn surgeist_retained::Snapshot<'a>::is_input_eligible(&self, id: surgeist_retained::Id) -> surgeist_retained::Result<bool>
 pub fn surgeist_retained::Snapshot<'a>::projected_ancestors(&self, id: surgeist_retained::Id) -> surgeist_retained::Result<impl core::iter::traits::iterator::Iterator<Item = surgeist_retained::Id> + '_>
 pub fn surgeist_retained::Snapshot<'a>::projected_children(&self, slot: surgeist_retained::ProjectionSlot) -> surgeist_retained::Result<impl core::iter::traits::iterator::Iterator<Item = surgeist_retained::Id> + '_>
-pub fn surgeist_retained::Snapshot<'a>::revision(&self) -> u64
+pub fn surgeist_retained::Snapshot<'a>::revision(&self) -> surgeist_retained::ModelRevision
 pub fn surgeist_retained::Snapshot<'a>::root(&self) -> surgeist_retained::Id
 pub fn surgeist_retained::Snapshot<'a>::virtual_projection(&self, slot: surgeist_retained::ProjectionSlot) -> surgeist_retained::Result<core::option::Option<&surgeist_retained::VirtualProjection>>
 pub struct surgeist_retained::SourceRevision(_)

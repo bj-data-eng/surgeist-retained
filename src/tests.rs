@@ -832,6 +832,15 @@ fn event_routing_emits_commands() {
 }
 
 #[test]
+fn model_revision_is_a_semantic_value() {
+    let model = Model::empty();
+    let revision = model.revision();
+
+    assert_eq!(revision.get(), 0);
+    assert_eq!(model.snapshot().revision(), revision);
+}
+
+#[test]
 fn revision_tracks_snapshot_observable_changes() {
     let command = CommandName::new("project.run").unwrap();
     let button =

@@ -20,7 +20,7 @@ impl<'a> Snapshot<'a> {
     }
 
     #[must_use]
-    pub fn revision(&self) -> u64 {
+    pub fn revision(&self) -> super::ModelRevision {
         self.model.revision()
     }
 

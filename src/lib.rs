@@ -25,7 +25,7 @@ pub use event::{
     Command, Event, EventKind, Hook, Intent, Phase, Propagation, Route, RouteStep, Trigger,
 };
 pub use identity::{Id, Key, KeyPath};
-pub use model::Model;
+pub use model::{Model, ModelRevision};
 pub use mutation::{Mutation, MutationEdit, Patch, ReplaceMode};
 pub use projection::{
     ProjectionEdit, ProjectionReplaceMode, ProjectionSlot, ProjectionSource, SlotKey,
