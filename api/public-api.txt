@@ -149,17 +149,6 @@ pub surgeist_retained::Role::Widget
 #[non_exhaustive] pub enum surgeist_retained::SlotKey
 pub surgeist_retained::SlotKey::Default
 pub surgeist_retained::SlotKey::Named(surgeist_retained::SlotName)
-#[non_exhaustive] pub enum surgeist_retained::StateFlag
-pub surgeist_retained::StateFlag::Active
-pub surgeist_retained::StateFlag::Checked
-pub surgeist_retained::StateFlag::Disabled
-pub surgeist_retained::StateFlag::Expanded
-pub surgeist_retained::StateFlag::FocusWithin
-pub surgeist_retained::StateFlag::Focused
-pub surgeist_retained::StateFlag::Hovered
-pub surgeist_retained::StateFlag::PointerCaptured
-pub surgeist_retained::StateFlag::Pressed
-pub surgeist_retained::StateFlag::Selected
 #[non_exhaustive] pub enum surgeist_retained::Trigger
 pub surgeist_retained::Trigger::Event(surgeist_retained::EventKind)
 pub surgeist_retained::Trigger::Intent(surgeist_retained::Intent)

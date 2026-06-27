@@ -136,21 +136,6 @@ pub enum Presence {
     RetainedOnly,
 }
 
-#[non_exhaustive]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum StateFlag {
-    Hovered,
-    Active,
-    Focused,
-    FocusWithin,
-    PointerCaptured,
-    Disabled,
-    Selected,
-    Pressed,
-    Checked,
-    Expanded,
-}
-
 /// Application-authored retained state changes.
 ///
 /// Use builder methods so only app-mutable state can be authored through
