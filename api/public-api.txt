@@ -119,6 +119,10 @@ pub surgeist_retained::Phase::Target
 pub surgeist_retained::Presence::Hidden
 pub surgeist_retained::Presence::RetainedOnly
 pub surgeist_retained::Presence::Visible
+pub enum surgeist_retained::ProjectionReplaceMode
+pub surgeist_retained::ProjectionReplaceMode::PreserveCompatible
+pub surgeist_retained::ProjectionReplaceMode::PreserveIdentity
+pub surgeist_retained::ProjectionReplaceMode::ResetIdentity
 #[non_exhaustive] pub enum surgeist_retained::ProjectionSource
 pub surgeist_retained::ProjectionSource::Elements(alloc::vec::Vec<surgeist_retained::Element>)
 pub surgeist_retained::ProjectionSource::Virtual(surgeist_retained::VirtualProjection)
@@ -127,9 +131,8 @@ pub surgeist_retained::Propagation::Bubble
 pub surgeist_retained::Propagation::CaptureThenBubble
 pub surgeist_retained::Propagation::TargetOnly
 pub enum surgeist_retained::ReplaceMode
+pub surgeist_retained::ReplaceMode::AllowKindChange
 pub surgeist_retained::ReplaceMode::PreserveCompatible
-pub surgeist_retained::ReplaceMode::PreserveIdentity
-pub surgeist_retained::ReplaceMode::ResetIdentity
 #[non_exhaustive] pub enum surgeist_retained::Role
 pub surgeist_retained::Role::Application
 pub surgeist_retained::Role::Button
@@ -385,8 +388,8 @@ pub const fn surgeist_retained::PointerId::get(self) -> u64
 pub const fn surgeist_retained::PointerId::new(value: u64) -> Self
 pub struct surgeist_retained::ProjectionEdit
 impl surgeist_retained::ProjectionEdit
-pub const fn surgeist_retained::ProjectionEdit::mode(&self) -> surgeist_retained::ReplaceMode
-pub fn surgeist_retained::ProjectionEdit::new(slot: surgeist_retained::ProjectionSlot, source: surgeist_retained::ProjectionSource, mode: surgeist_retained::ReplaceMode) -> Self
+pub const fn surgeist_retained::ProjectionEdit::mode(&self) -> surgeist_retained::ProjectionReplaceMode
+pub fn surgeist_retained::ProjectionEdit::new(slot: surgeist_retained::ProjectionSlot, source: surgeist_retained::ProjectionSource, mode: surgeist_retained::ProjectionReplaceMode) -> Self
 pub fn surgeist_retained::ProjectionEdit::slot(&self) -> surgeist_retained::ProjectionSlot
 pub fn surgeist_retained::ProjectionEdit::source(&self) -> &surgeist_retained::ProjectionSource
 impl core::convert::From<surgeist_retained::ProjectionEdit> for surgeist_retained::MutationEdit

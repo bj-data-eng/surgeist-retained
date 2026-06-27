@@ -26,10 +26,10 @@ pub use event::{
 };
 pub use identity::{Id, Key, KeyPath};
 pub use model::Model;
-pub use mutation::{Mutation, MutationEdit, Patch};
+pub use mutation::{Mutation, MutationEdit, Patch, ReplaceMode};
 pub use projection::{
-    ProjectionEdit, ProjectionSlot, ProjectionSource, ReplaceMode, SlotKey, SourceRevision,
-    VirtualItem, VirtualProjection, VirtualRange,
+    ProjectionEdit, ProjectionReplaceMode, ProjectionSlot, ProjectionSource, SlotKey,
+    SourceRevision, VirtualItem, VirtualProjection, VirtualRange,
 };
 pub use snapshot::{NodeRef, Snapshot};
 pub use state::{PointerCapture, PointerId, Presence, State, StateFlag, StatePatch};

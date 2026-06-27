@@ -3,8 +3,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use super::{
     Attribute, ChangeFlags, ChangeSet, Command, Element, Error, ErrorCode, Event, Id, Key, KeyPath,
     Kind, Mutation, MutationEdit, Patch, Phase, PointerCapture, PointerId, Presence,
-    ProjectionEdit, ProjectionSlot, ProjectionSource, ReplaceMode, Report, Result, Route,
-    RouteStep, State, VirtualProjection, transaction::Transaction,
+    ProjectionEdit, ProjectionReplaceMode, ProjectionSlot, ProjectionSource, ReplaceMode, Report,
+    Result, Route, RouteStep, State, VirtualProjection, transaction::Transaction,
 };
 
 #[derive(Debug)]
@@ -854,7 +854,7 @@ impl Model {
         let already_dirty = self.dirty_slots.contains(&slot);
         let equivalent_pending = self.pending_sources.get(&slot) == Some(&pending);
         let clean_equivalent_cache = !already_dirty
-            && pending.mode != ReplaceMode::ResetIdentity
+            && pending.mode != ProjectionReplaceMode::ResetIdentity
             && self
                 .projection_caches
                 .get(&slot)
@@ -946,7 +946,7 @@ impl Model {
         slot: &ProjectionSlot,
         old_children: &[Id],
         elements: &[Element],
-        mode: ReplaceMode,
+        mode: ProjectionReplaceMode,
         transaction: &mut Transaction,
         changes: &mut ChangeSet,
     ) -> Result<Vec<Id>> {
@@ -1001,7 +1001,7 @@ impl Model {
         slot: &ProjectionSlot,
         old_children: &[Id],
         virtual_projection: &VirtualProjection,
-        mode: ReplaceMode,
+        mode: ProjectionReplaceMode,
         transaction: &mut Transaction,
         changes: &mut ChangeSet,
     ) -> Result<Vec<Id>> {
@@ -1097,9 +1097,9 @@ impl Model {
         index: usize,
         key: Option<&Key>,
         kind: &Kind,
-        mode: ReplaceMode,
+        mode: ProjectionReplaceMode,
     ) -> Option<Id> {
-        if mode == ReplaceMode::ResetIdentity {
+        if mode == ProjectionReplaceMode::ResetIdentity {
             return None;
         }
         let candidate = key
@@ -1112,7 +1112,7 @@ impl Model {
             })
             .or_else(|| old_children.get(index).copied());
         candidate.filter(|id| {
-            mode == ReplaceMode::PreserveIdentity
+            mode == ProjectionReplaceMode::PreserveIdentity
                 || self
                     .node(*id)
                     .map(|node| node.element.kind() == kind)
@@ -1125,9 +1125,9 @@ impl Model {
         old_children: &[Id],
         key: &Key,
         kind: &Kind,
-        mode: ReplaceMode,
+        mode: ProjectionReplaceMode,
     ) -> Option<Id> {
-        if mode == ReplaceMode::ResetIdentity {
+        if mode == ProjectionReplaceMode::ResetIdentity {
             return None;
         }
         old_children
@@ -1139,7 +1139,7 @@ impl Model {
                     .unwrap_or(false)
             })
             .filter(|id| {
-                mode == ReplaceMode::PreserveIdentity
+                mode == ProjectionReplaceMode::PreserveIdentity
                     || self
                         .node(*id)
                         .map(|node| node.element.kind() == kind)
@@ -1457,7 +1457,7 @@ pub(crate) struct ProjectionCache {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct PendingProjection {
     pub(crate) source: ProjectionSource,
-    pub(crate) mode: ReplaceMode,
+    pub(crate) mode: ProjectionReplaceMode,
 }
 
 fn validate_projection_source(source: &ProjectionSource) -> Result<()> {

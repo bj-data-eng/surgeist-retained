@@ -50,12 +50,16 @@ pub enum SlotKey {
 pub struct ProjectionEdit {
     slot: ProjectionSlot,
     source: ProjectionSource,
-    mode: ReplaceMode,
+    mode: ProjectionReplaceMode,
 }
 
 impl ProjectionEdit {
     #[must_use]
-    pub fn new(slot: ProjectionSlot, source: ProjectionSource, mode: ReplaceMode) -> Self {
+    pub fn new(
+        slot: ProjectionSlot,
+        source: ProjectionSource,
+        mode: ProjectionReplaceMode,
+    ) -> Self {
         Self { slot, source, mode }
     }
 
@@ -70,7 +74,7 @@ impl ProjectionEdit {
     }
 
     #[must_use]
-    pub const fn mode(&self) -> ReplaceMode {
+    pub const fn mode(&self) -> ProjectionReplaceMode {
         self.mode
     }
 }
@@ -82,10 +86,16 @@ pub enum ProjectionSource {
     Virtual(VirtualProjection),
 }
 
+/// Projection-owned identity preservation behavior.
+///
+/// This mode applies when resolving a projection source into retained nodes.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ReplaceMode {
+pub enum ProjectionReplaceMode {
+    /// Reuse existing projected identity only when the element kind remains compatible.
     PreserveCompatible,
+    /// Reuse existing projected identity even when the element kind changes.
     PreserveIdentity,
+    /// Allocate fresh projected identity for every resolved item.
     ResetIdentity,
 }
 

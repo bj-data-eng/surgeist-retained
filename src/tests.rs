@@ -209,6 +209,55 @@ fn canonical_patches_reject_duplicate_sibling_keys_and_update_key_paths() {
 }
 
 #[test]
+fn canonical_replace_mode_names_canonical_semantics() {
+    let mut model = Model::new(Element::root().with_child(element("button", "run"))).unwrap();
+    let target = model
+        .snapshot()
+        .children(model.root())
+        .unwrap()
+        .next()
+        .unwrap();
+
+    assert_eq!(
+        model
+            .apply(Patch::Replace {
+                id: target,
+                element: element("section", "run"),
+                mode: ReplaceMode::PreserveCompatible,
+            })
+            .unwrap_err()
+            .code(),
+        ErrorCode::InvalidPatch
+    );
+
+    model
+        .apply(Patch::Replace {
+            id: target,
+            element: element("button", "run").with_text(text("updated")),
+            mode: ReplaceMode::AllowKindChange,
+        })
+        .unwrap();
+
+    assert_eq!(
+        model.snapshot().get(target).unwrap().text(),
+        Some(&text("updated"))
+    );
+
+    model
+        .apply(Patch::Replace {
+            id: target,
+            element: element("section", "run").with_text(text("section")),
+            mode: ReplaceMode::AllowKindChange,
+        })
+        .unwrap();
+
+    assert_eq!(
+        model.snapshot().get(target).unwrap().kind(),
+        &Kind::Element(tag("section"))
+    );
+}
+
+#[test]
 fn projection_updates_projected_children_without_rewriting_canonical_children() {
     let mut model = Model::empty();
     let root = model.root();
@@ -217,7 +266,7 @@ fn projection_updates_projected_children_without_rewriting_canonical_children() 
         .apply_projection(ProjectionEdit::new(
             slot.clone(),
             ProjectionSource::Elements(vec![element("button", "run")]),
-            ReplaceMode::PreserveCompatible,
+            ProjectionReplaceMode::PreserveCompatible,
         ))
         .unwrap();
     assert_eq!(
@@ -264,7 +313,7 @@ fn dirty_projection_blocks_stale_projected_routes() {
         .apply_projection(ProjectionEdit::new(
             slot,
             ProjectionSource::Elements(vec![element("button", "projected")]),
-            ReplaceMode::PreserveCompatible,
+            ProjectionReplaceMode::PreserveCompatible,
         ))
         .unwrap();
 
@@ -299,7 +348,7 @@ fn removing_projection_host_removes_projection_owned_children() {
         .apply_projection(ProjectionEdit::new(
             slot.clone(),
             ProjectionSource::Elements(vec![element("button", "run")]),
-            ReplaceMode::PreserveCompatible,
+            ProjectionReplaceMode::PreserveCompatible,
         ))
         .unwrap();
     model.resolve_projection(slot.clone()).unwrap();
@@ -327,7 +376,7 @@ fn equivalent_projection_preserves_identity_and_reports_no_changes() {
         .apply_projection(ProjectionEdit::new(
             slot.clone(),
             source.clone(),
-            ReplaceMode::PreserveCompatible,
+            ProjectionReplaceMode::PreserveCompatible,
         ))
         .unwrap();
     model.resolve_projection(slot.clone()).unwrap();
@@ -341,7 +390,7 @@ fn equivalent_projection_preserves_identity_and_reports_no_changes() {
         .apply_projection(ProjectionEdit::new(
             slot.clone(),
             source,
-            ReplaceMode::PreserveCompatible,
+            ProjectionReplaceMode::PreserveCompatible,
         ))
         .unwrap();
     assert!(apply_report.changes().is_empty());
@@ -365,7 +414,7 @@ fn projection_replace_modes_control_identity_preservation() {
         .apply_projection(ProjectionEdit::new(
             slot.clone(),
             ProjectionSource::Elements(vec![element("button", "run")]),
-            ReplaceMode::PreserveCompatible,
+            ProjectionReplaceMode::PreserveCompatible,
         ))
         .unwrap();
     model.resolve_projection(slot.clone()).unwrap();
@@ -380,7 +429,23 @@ fn projection_replace_modes_control_identity_preservation() {
         .apply_projection(ProjectionEdit::new(
             slot.clone(),
             ProjectionSource::Elements(vec![element("section", "run")]),
-            ReplaceMode::PreserveIdentity,
+            ProjectionReplaceMode::PreserveCompatible,
+        ))
+        .unwrap();
+    model.resolve_projection(slot.clone()).unwrap();
+    let kind_changed = model
+        .snapshot()
+        .projected_children(slot.clone())
+        .unwrap()
+        .next()
+        .unwrap();
+    assert_ne!(first, kind_changed);
+
+    model
+        .apply_projection(ProjectionEdit::new(
+            slot.clone(),
+            ProjectionSource::Elements(vec![element("article", "run")]),
+            ProjectionReplaceMode::PreserveIdentity,
         ))
         .unwrap();
     model.resolve_projection(slot.clone()).unwrap();
@@ -390,7 +455,7 @@ fn projection_replace_modes_control_identity_preservation() {
         .unwrap()
         .next()
         .unwrap();
-    assert_eq!(first, preserved);
+    assert_eq!(kind_changed, preserved);
 
     model
         .apply(Patch::SetState {
@@ -402,7 +467,7 @@ fn projection_replace_modes_control_identity_preservation() {
         .apply_projection(ProjectionEdit::new(
             slot.clone(),
             ProjectionSource::Elements(vec![element("section", "run")]),
-            ReplaceMode::ResetIdentity,
+            ProjectionReplaceMode::ResetIdentity,
         ))
         .unwrap();
     model.resolve_projection(slot.clone()).unwrap();
@@ -436,14 +501,14 @@ fn resolve_dirty_projections_is_atomic_across_slots() {
         .apply_projection(ProjectionEdit::new(
             first_slot.clone(),
             ProjectionSource::Elements(vec![element("button", "one")]),
-            ReplaceMode::PreserveCompatible,
+            ProjectionReplaceMode::PreserveCompatible,
         ))
         .unwrap();
     model
         .apply_projection(ProjectionEdit::new(
             second_slot.clone(),
             ProjectionSource::Elements(vec![element("button", "two")]),
-            ReplaceMode::PreserveCompatible,
+            ProjectionReplaceMode::PreserveCompatible,
         ))
         .unwrap();
 
@@ -485,7 +550,7 @@ fn projection_resolution_rolls_back_after_failure_injection() {
             .apply_projection(ProjectionEdit::new(
                 slot.clone(),
                 ProjectionSource::Elements(vec![element("button", "old")]),
-                ReplaceMode::PreserveCompatible,
+                ProjectionReplaceMode::PreserveCompatible,
             ))
             .unwrap();
         model.resolve_projection(slot.clone()).unwrap();
@@ -504,7 +569,7 @@ fn projection_resolution_rolls_back_after_failure_injection() {
             .apply_projection(ProjectionEdit::new(
                 slot.clone(),
                 source,
-                ReplaceMode::PreserveCompatible,
+                ProjectionReplaceMode::PreserveCompatible,
             ))
             .unwrap();
 
@@ -536,7 +601,7 @@ fn projection_reuse_failure_restores_reused_node() {
         .apply_projection(ProjectionEdit::new(
             slot.clone(),
             ProjectionSource::Elements(vec![element("button", "same")]),
-            ReplaceMode::PreserveCompatible,
+            ProjectionReplaceMode::PreserveCompatible,
         ))
         .unwrap();
     model.resolve_projection(slot.clone()).unwrap();
@@ -551,7 +616,7 @@ fn projection_reuse_failure_restores_reused_node() {
         .apply_projection(ProjectionEdit::new(
             slot.clone(),
             ProjectionSource::Elements(vec![element("button", "same").with_text(text("changed"))]),
-            ReplaceMode::PreserveCompatible,
+            ProjectionReplaceMode::PreserveCompatible,
         ))
         .unwrap();
     model.set_failpoint(Failpoint::AfterProjectedChildReuse);
@@ -577,7 +642,7 @@ fn virtual_anchor_failure_restores_anchor_and_window() {
         .apply_projection(ProjectionEdit::new(
             slot.clone(),
             ProjectionSource::Virtual(virtual_projection(0, 1)),
-            ReplaceMode::PreserveCompatible,
+            ProjectionReplaceMode::PreserveCompatible,
         ))
         .unwrap();
     model.resolve_projection(slot.clone()).unwrap();
@@ -598,7 +663,7 @@ fn virtual_anchor_failure_restores_anchor_and_window() {
         .apply_projection(ProjectionEdit::new(
             slot.clone(),
             ProjectionSource::Virtual(virtual_projection(1, 1)),
-            ReplaceMode::PreserveCompatible,
+            ProjectionReplaceMode::PreserveCompatible,
         ))
         .unwrap();
     model.resolve_projection(slot.clone()).unwrap();
@@ -612,7 +677,7 @@ fn virtual_anchor_failure_restores_anchor_and_window() {
         .apply_projection(ProjectionEdit::new(
             slot.clone(),
             ProjectionSource::Virtual(virtual_projection(0, 1)),
-            ReplaceMode::PreserveCompatible,
+            ProjectionReplaceMode::PreserveCompatible,
         ))
         .unwrap();
     model.set_failpoint(Failpoint::AfterVirtualAnchorRemoval);
@@ -688,7 +753,7 @@ fn virtual_projection_materializes_only_supplied_items_and_preserves_state_ancho
         .apply_projection(ProjectionEdit::new(
             slot.clone(),
             ProjectionSource::Virtual(make_projection(0)),
-            ReplaceMode::PreserveCompatible,
+            ProjectionReplaceMode::PreserveCompatible,
         ))
         .unwrap();
     model.resolve_projection(slot.clone()).unwrap();
@@ -709,7 +774,7 @@ fn virtual_projection_materializes_only_supplied_items_and_preserves_state_ancho
         .apply_projection(ProjectionEdit::new(
             slot.clone(),
             ProjectionSource::Virtual(make_projection(1)),
-            ReplaceMode::PreserveCompatible,
+            ProjectionReplaceMode::PreserveCompatible,
         ))
         .unwrap();
     model.resolve_projection(slot.clone()).unwrap();
@@ -727,7 +792,7 @@ fn virtual_projection_materializes_only_supplied_items_and_preserves_state_ancho
         .apply_projection(ProjectionEdit::new(
             slot.clone(),
             ProjectionSource::Virtual(make_projection(0)),
-            ReplaceMode::PreserveCompatible,
+            ProjectionReplaceMode::PreserveCompatible,
         ))
         .unwrap();
     model.resolve_projection(slot.clone()).unwrap();
@@ -831,7 +896,7 @@ fn revision_tracks_snapshot_observable_changes() {
         .apply_projection(ProjectionEdit::new(
             slot.clone(),
             projection_source.clone(),
-            ReplaceMode::PreserveCompatible,
+            ProjectionReplaceMode::PreserveCompatible,
         ))
         .unwrap();
     let dirty_revision = model.revision();
@@ -847,7 +912,7 @@ fn revision_tracks_snapshot_observable_changes() {
         .apply_projection(ProjectionEdit::new(
             slot.clone(),
             projection_source,
-            ReplaceMode::PreserveCompatible,
+            ProjectionReplaceMode::PreserveCompatible,
         ))
         .unwrap();
     model.resolve_projection(slot).unwrap();
@@ -864,7 +929,7 @@ fn revision_advances_when_projection_resolution_only_clears_dirty_slot() {
         .apply_projection(ProjectionEdit::new(
             slot.clone(),
             ProjectionSource::Elements(Vec::new()),
-            ReplaceMode::PreserveCompatible,
+            ProjectionReplaceMode::PreserveCompatible,
         ))
         .unwrap();
     let dirty_revision = model.revision();

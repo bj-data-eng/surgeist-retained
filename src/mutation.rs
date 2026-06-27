@@ -1,7 +1,18 @@
 use super::{
-    Attribute, AttributeName, Element, Hook, Id, Kind, ProjectionEdit, ReplaceMode, Role,
-    StatePatch, Text, Value,
+    Attribute, AttributeName, Element, Hook, Id, Kind, ProjectionEdit, Role, StatePatch, Text,
+    Value,
 };
+
+/// Canonical replacement behavior for `Patch::Replace`.
+///
+/// Canonical replacement always updates the existing retained node in place.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ReplaceMode {
+    /// Preserve the retained node only if the replacement has the same kind.
+    PreserveCompatible,
+    /// Preserve the existing retained node identity and allow the replacement kind to change.
+    AllowKindChange,
+}
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Mutation {
