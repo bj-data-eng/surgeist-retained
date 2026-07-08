@@ -166,7 +166,7 @@ impl<'a> Snapshot<'a> {
     }
 
     #[must_use]
-    pub fn get(&self, id: Id) -> Option<NodeRef<'_>> {
+    pub fn get(&self, id: Id) -> Option<NodeRef<'a>> {
         self.model.node(id).ok().map(|node| NodeRef { node })
     }
 
@@ -204,6 +204,11 @@ impl<'a> Snapshot<'a> {
         traversal: SelectorTraversal,
     ) -> Result<SelectorSiblingFacts> {
         self.model.selector_sibling_facts(id, traversal)
+    }
+
+    #[must_use]
+    pub fn selector_metadata(&self, id: Id) -> Option<SelectorMetadata<'a>> {
+        self.get(id).map(|node| SelectorMetadata { node })
     }
 
     pub fn ancestors(&self, id: Id) -> Result<impl Iterator<Item = Id> + '_> {
@@ -294,6 +299,11 @@ impl<'a> NodeRef<'a> {
     }
 
     #[must_use]
+    pub fn label(&self) -> Option<&'a Text> {
+        self.node.element.label()
+    }
+
+    #[must_use]
     pub fn attributes(&self) -> &'a [Attribute] {
         self.node.element.attributes()
     }
@@ -326,5 +336,66 @@ impl<'a> NodeRef<'a> {
     #[must_use]
     pub fn projected_parent(&self) -> Option<Id> {
         self.node.projected_parent
+    }
+}
+
+/// Borrowed retained metadata facts used by selector matchers.
+#[derive(Clone, Copy, Debug)]
+pub struct SelectorMetadata<'a> {
+    node: NodeRef<'a>,
+}
+
+impl<'a> SelectorMetadata<'a> {
+    #[must_use]
+    pub fn id(&self) -> Id {
+        self.node.id()
+    }
+
+    #[must_use]
+    pub fn key(&self) -> Option<&'a Key> {
+        self.node.key()
+    }
+
+    #[must_use]
+    pub fn kind(&self) -> &'a Kind {
+        self.node.kind()
+    }
+
+    #[must_use]
+    pub fn role(&self) -> Role {
+        self.node.role()
+    }
+
+    #[must_use]
+    pub fn label(&self) -> Option<&'a Text> {
+        self.node.label()
+    }
+
+    #[must_use]
+    pub fn classes(&self) -> &'a [Class] {
+        self.node.classes()
+    }
+
+    #[must_use]
+    pub fn attributes(&self) -> &'a [Attribute] {
+        self.node.attributes()
+    }
+
+    #[must_use]
+    pub fn text(&self) -> Option<&'a Text> {
+        self.node.text()
+    }
+
+    #[must_use]
+    pub fn has_class(&self, class: &Class) -> bool {
+        self.classes().contains(class)
+    }
+
+    #[must_use]
+    pub fn attribute(&self, name: &super::AttributeName) -> Option<&'a super::Value> {
+        self.attributes()
+            .iter()
+            .find(|attribute| &attribute.name == name)
+            .map(|attribute| &attribute.value)
     }
 }

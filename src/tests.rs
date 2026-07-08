@@ -418,6 +418,43 @@ fn selector_count_rejects_zero() {
 }
 
 #[test]
+fn selector_metadata_facts_expose_tag_key_class_role_and_attributes() {
+    let model = Model::new(
+        Element::root().with_child(
+            Element::tagged(tag("button"))
+                .with_key(key("run"))
+                .with_role(Role::Button)
+                .with_label(text("Run"))
+                .with_class(Class::new("primary").unwrap())
+                .with_class(Class::new("cta").unwrap())
+                .with_attribute(Attribute::new(attr_name("data-mode"), value("fast slow")))
+                .with_text(text("Launch")),
+        ),
+    )
+    .unwrap();
+    let target = model
+        .snapshot()
+        .children(model.root())
+        .unwrap()
+        .next()
+        .unwrap();
+    let facts = model.snapshot().selector_metadata(target).unwrap();
+
+    assert_eq!(facts.id(), target);
+    assert_eq!(facts.key(), Some(&key("run")));
+    assert_eq!(facts.kind(), &Kind::Element(tag("button")));
+    assert_eq!(facts.role(), Role::Button);
+    assert_eq!(facts.label(), Some(&text("Run")));
+    assert_eq!(facts.text(), Some(&text("Launch")));
+    assert!(facts.has_class(&Class::new("primary").unwrap()));
+    assert!(facts.has_class(&Class::new("cta").unwrap()));
+    assert_eq!(
+        facts.attribute(&attr_name("data-mode")).map(Value::as_str),
+        Some("fast slow")
+    );
+}
+
+#[test]
 fn dirty_projection_blocks_stale_projected_routes() {
     let command = CommandName::new("project.run").unwrap();
     let button =

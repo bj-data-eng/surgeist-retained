@@ -32,7 +32,8 @@ pub use projection::{
     SourceRevision, VirtualItem, VirtualProjection, VirtualRange,
 };
 pub use snapshot::{
-    NodeRef, SelectorCount, SelectorIndex, SelectorSiblingFacts, SelectorTraversal, Snapshot,
+    NodeRef, SelectorCount, SelectorIndex, SelectorMetadata, SelectorSiblingFacts,
+    SelectorTraversal, Snapshot,
 };
 pub use state::{PointerCapture, PointerId, Presence, RuntimeStatePatch, State, StatePatch};
 pub use string::{
