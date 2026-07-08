@@ -126,6 +126,32 @@ impl State {
         }
         *self != before
     }
+
+    pub(crate) fn apply_runtime_patch(&mut self, patch: &RuntimeStatePatch) -> bool {
+        let before = self.clone();
+        if let Some(value) = patch.hovered {
+            self.hovered = value;
+        }
+        if let Some(value) = patch.active {
+            self.active = value;
+        }
+        if let Some(value) = patch.pressed {
+            self.pressed = value;
+        }
+        if let Some(value) = patch.disabled {
+            self.disabled = value;
+        }
+        if let Some(value) = patch.selected {
+            self.selected = value;
+        }
+        if let Some(value) = patch.checked {
+            self.checked = value;
+        }
+        if let Some(value) = patch.expanded {
+            self.expanded = value;
+        }
+        *self != before
+    }
 }
 
 #[non_exhaustive]
@@ -188,6 +214,70 @@ impl StatePatch {
     #[must_use]
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = Some(disabled);
+        self
+    }
+
+    #[must_use]
+    pub fn checked(mut self, checked: Option<bool>) -> Self {
+        self.checked = Some(checked);
+        self
+    }
+
+    #[must_use]
+    pub fn expanded(mut self, expanded: Option<bool>) -> Self {
+        self.expanded = Some(expanded);
+        self
+    }
+}
+
+/// Runtime-authored retained state changes supplied by root/window/runtime.
+///
+/// This is separate from `StatePatch` because app-authored state and host
+/// interaction facts have different owners.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct RuntimeStatePatch {
+    hovered: Option<bool>,
+    active: Option<bool>,
+    pressed: Option<bool>,
+    disabled: Option<bool>,
+    selected: Option<bool>,
+    checked: Option<Option<bool>>,
+    expanded: Option<Option<bool>>,
+}
+
+impl RuntimeStatePatch {
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    #[must_use]
+    pub fn hovered(mut self, hovered: bool) -> Self {
+        self.hovered = Some(hovered);
+        self
+    }
+
+    #[must_use]
+    pub fn active(mut self, active: bool) -> Self {
+        self.active = Some(active);
+        self
+    }
+
+    #[must_use]
+    pub fn pressed(mut self, pressed: bool) -> Self {
+        self.pressed = Some(pressed);
+        self
+    }
+
+    #[must_use]
+    pub fn disabled(mut self, disabled: bool) -> Self {
+        self.disabled = Some(disabled);
+        self
+    }
+
+    #[must_use]
+    pub fn selected(mut self, selected: bool) -> Self {
+        self.selected = Some(selected);
         self
     }
 

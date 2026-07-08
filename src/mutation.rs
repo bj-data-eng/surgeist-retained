@@ -1,6 +1,6 @@
 use super::{
-    Attribute, AttributeName, Element, Hook, Id, Kind, ProjectionEdit, Role, StatePatch, Text,
-    Value,
+    Attribute, AttributeName, Element, Hook, Id, Kind, ProjectionEdit, Role, RuntimeStatePatch,
+    StatePatch, Text, Value,
 };
 
 /// Canonical replacement behavior for `Patch::Replace`.
@@ -108,6 +108,10 @@ pub enum Patch {
     SetState {
         id: Id,
         state: StatePatch,
+    },
+    SetRuntimeState {
+        id: Id,
+        state: RuntimeStatePatch,
     },
 }
 

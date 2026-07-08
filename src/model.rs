@@ -943,6 +943,19 @@ impl Model {
                     self.release_invalid_focus_and_capture(transaction, &mut changes);
                 }
             }
+            Patch::SetRuntimeState { id, state } => {
+                let before = self.node(id)?.state.clone();
+                let mut after = before.clone();
+                let changed = after.apply_runtime_patch(&state);
+                if changed {
+                    transaction.record_node(self, id);
+                    self.node_mut(id)?.state = after;
+                    changes.change(id, ChangeFlags::empty().state().runtime_state());
+                    if self.node(id)?.state.disabled != before.disabled {
+                        self.release_invalid_focus_and_capture(transaction, &mut changes);
+                    }
+                }
+            }
         }
         Ok(changes)
     }
@@ -1470,16 +1483,21 @@ impl Model {
         transaction: &mut Transaction,
         changes: &mut ChangeSet,
     ) {
+        let mut cleared_focus = false;
         if let Some(focused) = self.focus
             && !self.is_input_eligible(focused).unwrap_or(false)
         {
             transaction.record_focus(self);
             self.focus = None;
+            cleared_focus = true;
             if self.node(focused).is_ok() {
                 transaction.record_node(self, focused);
                 self.node_mut(focused).expect("node checked").state.focused = false;
                 changes.change(focused, ChangeFlags::empty().state().focus());
             }
+        }
+        if cleared_focus {
+            self.recompute_focus_within(transaction, changes);
         }
         let captures: Vec<_> = self
             .pointer_captures

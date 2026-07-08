@@ -1294,6 +1294,78 @@ fn state_patch_builder_exposes_only_app_mutable_state() {
 }
 
 #[test]
+fn runtime_state_patch_updates_externally_supplied_pseudo_class_facts() {
+    let mut model = Model::new(Element::root().with_child(element("button", "run"))).unwrap();
+    let target = model
+        .snapshot()
+        .children(model.root())
+        .unwrap()
+        .next()
+        .unwrap();
+
+    let report = model
+        .apply(Patch::SetRuntimeState {
+            id: target,
+            state: RuntimeStatePatch::new()
+                .hovered(true)
+                .active(true)
+                .pressed(true)
+                .disabled(true)
+                .selected(true)
+                .checked(Some(true))
+                .expanded(Some(false)),
+        })
+        .unwrap();
+
+    let snapshot = model.snapshot();
+    let state = snapshot.get(target).unwrap().state();
+    assert!(state.hovered());
+    assert!(state.active());
+    assert!(state.pressed());
+    assert!(state.disabled());
+    assert!(state.selected());
+    assert_eq!(state.checked(), Some(true));
+    assert_eq!(state.expanded(), Some(false));
+    let (_, flags) = report.changes().changed().next().unwrap();
+    assert!(flags.has_state());
+    assert!(flags.has_runtime_state());
+}
+
+#[test]
+fn runtime_disabled_state_releases_focus_and_pointer_capture() {
+    let mut model = Model::new(
+        Element::root()
+            .with_child(element("section", "parent").with_child(element("button", "run"))),
+    )
+    .unwrap();
+    let parent = model
+        .snapshot()
+        .children(model.root())
+        .unwrap()
+        .next()
+        .unwrap();
+    let target = model.snapshot().children(parent).unwrap().next().unwrap();
+
+    model.focus(Some(target)).unwrap();
+    model
+        .capture_pointer(PointerCapture::new(PointerId::new(7), target))
+        .unwrap();
+
+    model
+        .apply(Patch::SetRuntimeState {
+            id: target,
+            state: RuntimeStatePatch::new().disabled(true),
+        })
+        .unwrap();
+
+    let snapshot = model.snapshot();
+    let state = snapshot.get(target).unwrap().state();
+    assert!(!state.focused());
+    assert!(!state.pointer_captured());
+    assert!(!snapshot.get(parent).unwrap().state().focus_within());
+}
+
+#[test]
 fn pointer_capture_state_is_aggregate() {
     let mut model = Model::new(
         Element::root()

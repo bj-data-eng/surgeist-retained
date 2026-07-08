@@ -34,7 +34,7 @@ pub use projection::{
 pub use snapshot::{
     NodeRef, SelectorCount, SelectorIndex, SelectorSiblingFacts, SelectorTraversal, Snapshot,
 };
-pub use state::{PointerCapture, PointerId, Presence, State, StatePatch};
+pub use state::{PointerCapture, PointerId, Presence, RuntimeStatePatch, State, StatePatch};
 pub use string::{
     Attribute, AttributeName, Class, CommandName, EventName, SlotName, Tag, Text, Value,
 };

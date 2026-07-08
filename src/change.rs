@@ -14,6 +14,7 @@ pub struct ChangeFlags {
     hooks: bool,
     presence: bool,
     state: bool,
+    runtime_state: bool,
     focus: bool,
     pointer_capture: bool,
     projection: bool,
@@ -33,6 +34,7 @@ impl ChangeFlags {
             hooks: false,
             presence: false,
             state: false,
+            runtime_state: false,
             focus: false,
             pointer_capture: false,
             projection: false,
@@ -101,6 +103,12 @@ impl ChangeFlags {
     #[must_use]
     pub const fn state(mut self) -> Self {
         self.state = true;
+        self
+    }
+
+    #[must_use]
+    pub const fn runtime_state(mut self) -> Self {
+        self.runtime_state = true;
         self
     }
 
@@ -178,6 +186,11 @@ impl ChangeFlags {
     }
 
     #[must_use]
+    pub const fn has_runtime_state(self) -> bool {
+        self.runtime_state
+    }
+
+    #[must_use]
     pub const fn has_focus(self) -> bool {
         self.focus
     }
@@ -198,6 +211,7 @@ impl ChangeFlags {
         self.hooks |= other.hooks;
         self.presence |= other.presence;
         self.state |= other.state;
+        self.runtime_state |= other.runtime_state;
         self.focus |= other.focus;
         self.pointer_capture |= other.pointer_capture;
         self.projection |= other.projection;
