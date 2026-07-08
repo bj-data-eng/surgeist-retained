@@ -3,6 +3,17 @@ use super::{
     State, Text, VirtualProjection,
 };
 
+/// Tree view used when exposing retained facts to selector matchers.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SelectorTraversal {
+    /// Inspect only canonical retained children and parents.
+    Canonical,
+    /// Inspect the projected/effective tree through each node's default projection slot.
+    ///
+    /// Named projection slots are not part of selector traversal in this plan.
+    ProjectedDefaultSlot,
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct Snapshot<'a> {
     model: &'a Model,
@@ -43,6 +54,18 @@ impl<'a> Snapshot<'a> {
         slot: ProjectionSlot,
     ) -> Result<impl Iterator<Item = Id> + '_> {
         Ok(self.model.projected_children(slot)?.into_iter())
+    }
+
+    pub fn selector_children(
+        &self,
+        id: Id,
+        traversal: SelectorTraversal,
+    ) -> Result<impl Iterator<Item = Id> + '_> {
+        Ok(self.model.selector_children(id, traversal)?.into_iter())
+    }
+
+    pub fn selector_parent(&self, id: Id, traversal: SelectorTraversal) -> Result<Option<Id>> {
+        self.model.selector_parent(id, traversal)
     }
 
     pub fn ancestors(&self, id: Id) -> Result<impl Iterator<Item = Id> + '_> {

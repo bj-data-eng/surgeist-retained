@@ -297,6 +297,72 @@ fn projection_updates_projected_children_without_rewriting_canonical_children() 
 }
 
 #[test]
+fn selector_traversal_policy_names_canonical_and_projected_trees() {
+    let mut model = Model::new(
+        Element::root()
+            .with_child(element("host", "host").with_child(element("button", "canonical"))),
+    )
+    .unwrap();
+    let host = model
+        .snapshot()
+        .children(model.root())
+        .unwrap()
+        .next()
+        .unwrap();
+    let canonical = model.snapshot().children(host).unwrap().next().unwrap();
+    let slot = ProjectionSlot::default(host);
+
+    model
+        .apply_projection(ProjectionEdit::new(
+            slot.clone(),
+            ProjectionSource::Elements(vec![element("button", "projected")]),
+            ProjectionReplaceMode::PreserveCompatible,
+        ))
+        .unwrap();
+    model.resolve_projection(slot.clone()).unwrap();
+    let projected = model
+        .snapshot()
+        .projected_children(slot)
+        .unwrap()
+        .next()
+        .unwrap();
+
+    let snapshot = model.snapshot();
+    assert_eq!(
+        snapshot
+            .selector_children(host, SelectorTraversal::Canonical)
+            .unwrap()
+            .collect::<Vec<_>>(),
+        vec![canonical]
+    );
+    assert_eq!(
+        snapshot
+            .selector_children(host, SelectorTraversal::ProjectedDefaultSlot)
+            .unwrap()
+            .collect::<Vec<_>>(),
+        vec![projected]
+    );
+    assert_eq!(
+        snapshot
+            .selector_parent(projected, SelectorTraversal::Canonical)
+            .unwrap(),
+        None
+    );
+    assert_eq!(
+        snapshot
+            .selector_parent(projected, SelectorTraversal::ProjectedDefaultSlot)
+            .unwrap(),
+        Some(host)
+    );
+    assert_eq!(
+        snapshot
+            .selector_parent(canonical, SelectorTraversal::ProjectedDefaultSlot)
+            .unwrap(),
+        None
+    );
+}
+
+#[test]
 fn dirty_projection_blocks_stale_projected_routes() {
     let command = CommandName::new("project.run").unwrap();
     let button =

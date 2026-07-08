@@ -358,6 +358,42 @@ impl Model {
         Ok(Vec::new())
     }
 
+    pub(crate) fn selector_children(
+        &self,
+        id: Id,
+        traversal: super::SelectorTraversal,
+    ) -> Result<Vec<Id>> {
+        match traversal {
+            super::SelectorTraversal::Canonical => self.canonical_children(id),
+            super::SelectorTraversal::ProjectedDefaultSlot => {
+                self.projected_children(ProjectionSlot::default(id))
+            }
+        }
+    }
+
+    pub(crate) fn selector_parent(
+        &self,
+        id: Id,
+        traversal: super::SelectorTraversal,
+    ) -> Result<Option<Id>> {
+        self.ensure_live(id)?;
+        match traversal {
+            super::SelectorTraversal::Canonical => Ok(self.node(id)?.parent),
+            super::SelectorTraversal::ProjectedDefaultSlot => {
+                self.ensure_projected_edge_resolved(id)?;
+                let Some(parent) = self.effective_projected_parent(id)? else {
+                    return Ok(None);
+                };
+                let siblings = self.selector_children(parent, traversal)?;
+                if siblings.contains(&id) {
+                    Ok(Some(parent))
+                } else {
+                    Ok(None)
+                }
+            }
+        }
+    }
+
     pub(crate) fn cached_virtual_projection(
         &self,
         slot: ProjectionSlot,

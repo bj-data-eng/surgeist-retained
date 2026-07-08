@@ -31,7 +31,7 @@ pub use projection::{
     ProjectionEdit, ProjectionReplaceMode, ProjectionSlot, ProjectionSource, SlotKey,
     SourceRevision, VirtualItem, VirtualProjection, VirtualRange,
 };
-pub use snapshot::{NodeRef, Snapshot};
+pub use snapshot::{NodeRef, SelectorTraversal, Snapshot};
 pub use state::{PointerCapture, PointerId, Presence, State, StatePatch};
 pub use string::{
     Attribute, AttributeName, Class, CommandName, EventName, SlotName, Tag, Text, Value,
