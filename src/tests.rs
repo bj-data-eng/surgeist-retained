@@ -1576,6 +1576,39 @@ fn selector_invalidation_reports_focus_runtime_state_pressure() {
 }
 
 #[test]
+fn removing_focused_child_clears_focus_within_and_invalidates_ancestors() {
+    let mut model = Model::new(
+        Element::root()
+            .with_child(element("section", "parent").with_child(element("button", "target"))),
+    )
+    .unwrap();
+    let root = model.root();
+    let parent = model.snapshot().children(root).unwrap().next().unwrap();
+    let target = model.snapshot().children(parent).unwrap().next().unwrap();
+
+    model.focus(Some(target)).unwrap();
+    assert!(model.snapshot().get(root).unwrap().state().focus_within());
+    assert!(model.snapshot().get(parent).unwrap().state().focus_within());
+
+    let report = model.apply(Patch::Remove { id: target }).unwrap();
+    let snapshot = model.snapshot();
+    assert!(!snapshot.get(root).unwrap().state().focus_within());
+    assert!(!snapshot.get(parent).unwrap().state().focus_within());
+    assert!(
+        report
+            .changes()
+            .selector_invalidations()
+            .contains(&SelectorInvalidation::State { id: root })
+    );
+    assert!(
+        report
+            .changes()
+            .selector_invalidations()
+            .contains(&SelectorInvalidation::State { id: parent })
+    );
+}
+
+#[test]
 fn selector_invalidation_reports_projected_type_pressure_when_kind_changes() {
     let mut model = Model::new(Element::root().with_child(element("host", "host"))).unwrap();
     let host = model

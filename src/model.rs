@@ -1532,6 +1532,7 @@ impl Model {
         if self.focus == Some(id) {
             transaction.record_focus(self);
             self.focus = None;
+            self.recompute_focus_within(transaction, changes);
         }
         transaction.record_pointer_captures(self);
         self.pointer_captures.retain(|_, target| *target != id);
