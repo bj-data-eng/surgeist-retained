@@ -394,6 +394,53 @@ impl Model {
         }
     }
 
+    pub(crate) fn selector_sibling_facts(
+        &self,
+        id: Id,
+        traversal: super::SelectorTraversal,
+    ) -> Result<super::SelectorSiblingFacts> {
+        let Some(parent) = self.selector_parent(id, traversal)? else {
+            return Ok(super::SelectorSiblingFacts::new(
+                None, None, None, false, false, false, None, None, None, None,
+            ));
+        };
+        let siblings = self.selector_children(parent, traversal)?;
+        let index = siblings
+            .iter()
+            .position(|candidate| *candidate == id)
+            .ok_or_else(|| Error::new(ErrorCode::InvalidParent, "selector parent missing child"))?;
+        let kind = self.node(id)?.element.kind().clone();
+        let same_type_before = siblings[..index]
+            .iter()
+            .filter(|candidate| {
+                self.node(**candidate)
+                    .map(|node| node.element.kind() == &kind)
+                    .unwrap_or(false)
+            })
+            .count();
+        let same_type_total = siblings
+            .iter()
+            .filter(|candidate| {
+                self.node(**candidate)
+                    .map(|node| node.element.kind() == &kind)
+                    .unwrap_or(false)
+            })
+            .count();
+
+        Ok(super::SelectorSiblingFacts::new(
+            Some(parent),
+            index.checked_sub(1).map(|previous| siblings[previous]),
+            siblings.get(index + 1).copied(),
+            index == 0,
+            index + 1 == siblings.len(),
+            siblings.len() == 1,
+            Some(super::SelectorIndex::new(index)),
+            super::SelectorCount::new(siblings.len()),
+            Some(super::SelectorIndex::new(same_type_before)),
+            super::SelectorCount::new(same_type_total),
+        ))
+    }
+
     pub(crate) fn cached_virtual_projection(
         &self,
         slot: ProjectionSlot,

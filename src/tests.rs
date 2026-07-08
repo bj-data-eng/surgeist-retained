@@ -363,6 +363,61 @@ fn selector_traversal_policy_names_canonical_and_projected_trees() {
 }
 
 #[test]
+fn selector_sibling_and_structural_facts_are_derived_from_policy_tree() {
+    let model = Model::new(
+        Element::root()
+            .with_child(element("row", "a"))
+            .with_child(element("item", "b"))
+            .with_child(element("row", "c")),
+    )
+    .unwrap();
+    let snapshot = model.snapshot();
+    let children = snapshot.children(model.root()).unwrap().collect::<Vec<_>>();
+    let first = children[0];
+    let middle = children[1];
+    let last = children[2];
+
+    assert_eq!(
+        snapshot
+            .selector_sibling_facts(middle, SelectorTraversal::Canonical)
+            .unwrap(),
+        SelectorSiblingFacts::new(
+            Some(model.root()),
+            Some(first),
+            Some(last),
+            false,
+            false,
+            false,
+            Some(SelectorIndex::new(1)),
+            Some(SelectorCount::new(3).unwrap()),
+            Some(SelectorIndex::new(0)),
+            Some(SelectorCount::new(1).unwrap()),
+        )
+    );
+
+    assert_eq!(
+        snapshot
+            .selector_sibling_facts(first, SelectorTraversal::Canonical)
+            .unwrap()
+            .type_count(),
+        Some(SelectorCount::new(2).unwrap())
+    );
+    assert_eq!(
+        snapshot
+            .selector_sibling_facts(last, SelectorTraversal::Canonical)
+            .unwrap()
+            .type_index(),
+        Some(SelectorIndex::new(1))
+    );
+}
+
+#[test]
+fn selector_count_rejects_zero() {
+    assert_eq!(SelectorCount::new(0), None);
+    assert_eq!(SelectorCount::new(1).unwrap().get(), 1);
+}
+
+#[test]
 fn dirty_projection_blocks_stale_projected_routes() {
     let command = CommandName::new("project.run").unwrap();
     let button =

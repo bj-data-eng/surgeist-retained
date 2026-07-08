@@ -14,6 +14,136 @@ pub enum SelectorTraversal {
     ProjectedDefaultSlot,
 }
 
+/// Zero-based selector sibling position.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct SelectorIndex(usize);
+
+impl SelectorIndex {
+    #[must_use]
+    pub const fn new(value: usize) -> Self {
+        Self(value)
+    }
+
+    #[must_use]
+    pub const fn get(self) -> usize {
+        self.0
+    }
+}
+
+/// Total siblings participating in a selector sibling set.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct SelectorCount(std::num::NonZeroUsize);
+
+impl SelectorCount {
+    #[must_use]
+    pub const fn new(value: usize) -> Option<Self> {
+        match std::num::NonZeroUsize::new(value) {
+            Some(value) => Some(Self(value)),
+            None => None,
+        }
+    }
+
+    #[must_use]
+    pub const fn get(self) -> usize {
+        self.0.get()
+    }
+}
+
+/// Derived sibling and type-position facts for structural selectors.
+#[non_exhaustive]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SelectorSiblingFacts {
+    parent: Option<Id>,
+    previous_sibling: Option<Id>,
+    next_sibling: Option<Id>,
+    first_child: bool,
+    last_child: bool,
+    only_child: bool,
+    sibling_index: Option<SelectorIndex>,
+    sibling_count: Option<SelectorCount>,
+    type_index: Option<SelectorIndex>,
+    type_count: Option<SelectorCount>,
+}
+
+impl SelectorSiblingFacts {
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) const fn new(
+        parent: Option<Id>,
+        previous_sibling: Option<Id>,
+        next_sibling: Option<Id>,
+        first_child: bool,
+        last_child: bool,
+        only_child: bool,
+        sibling_index: Option<SelectorIndex>,
+        sibling_count: Option<SelectorCount>,
+        type_index: Option<SelectorIndex>,
+        type_count: Option<SelectorCount>,
+    ) -> Self {
+        Self {
+            parent,
+            previous_sibling,
+            next_sibling,
+            first_child,
+            last_child,
+            only_child,
+            sibling_index,
+            sibling_count,
+            type_index,
+            type_count,
+        }
+    }
+
+    #[must_use]
+    pub const fn parent(&self) -> Option<Id> {
+        self.parent
+    }
+
+    #[must_use]
+    pub const fn previous_sibling(&self) -> Option<Id> {
+        self.previous_sibling
+    }
+
+    #[must_use]
+    pub const fn next_sibling(&self) -> Option<Id> {
+        self.next_sibling
+    }
+
+    #[must_use]
+    pub const fn is_first_child(&self) -> bool {
+        self.first_child
+    }
+
+    #[must_use]
+    pub const fn is_last_child(&self) -> bool {
+        self.last_child
+    }
+
+    #[must_use]
+    pub const fn is_only_child(&self) -> bool {
+        self.only_child
+    }
+
+    #[must_use]
+    pub const fn sibling_index(&self) -> Option<SelectorIndex> {
+        self.sibling_index
+    }
+
+    #[must_use]
+    pub const fn sibling_count(&self) -> Option<SelectorCount> {
+        self.sibling_count
+    }
+
+    #[must_use]
+    pub const fn type_index(&self) -> Option<SelectorIndex> {
+        self.type_index
+    }
+
+    #[must_use]
+    pub const fn type_count(&self) -> Option<SelectorCount> {
+        self.type_count
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct Snapshot<'a> {
     model: &'a Model,
@@ -66,6 +196,14 @@ impl<'a> Snapshot<'a> {
 
     pub fn selector_parent(&self, id: Id, traversal: SelectorTraversal) -> Result<Option<Id>> {
         self.model.selector_parent(id, traversal)
+    }
+
+    pub fn selector_sibling_facts(
+        &self,
+        id: Id,
+        traversal: SelectorTraversal,
+    ) -> Result<SelectorSiblingFacts> {
+        self.model.selector_sibling_facts(id, traversal)
     }
 
     pub fn ancestors(&self, id: Id) -> Result<impl Iterator<Item = Id> + '_> {
