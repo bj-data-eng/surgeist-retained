@@ -1403,6 +1403,242 @@ fn runtime_disabled_state_releases_focus_and_pointer_capture() {
 }
 
 #[test]
+fn selector_invalidation_reports_metadata_and_structure_pressure() {
+    let mut model = Model::new(
+        Element::root()
+            .with_child(element("row", "a"))
+            .with_child(element("row", "b")),
+    )
+    .unwrap();
+    let children = model
+        .snapshot()
+        .children(model.root())
+        .unwrap()
+        .collect::<Vec<_>>();
+    let first = children[0];
+
+    let report = model
+        .apply(Patch::SetClasses {
+            id: first,
+            classes: vec![Class::new("selected").unwrap()],
+        })
+        .unwrap();
+    assert_eq!(
+        report.changes().selector_invalidations(),
+        &[SelectorInvalidation::Metadata {
+            id: first,
+            facts: SelectorMetadataChange::empty().classes(),
+        }]
+    );
+
+    let report = model
+        .apply(Patch::Move {
+            id: first,
+            parent: model.root(),
+            index: 2,
+        })
+        .unwrap();
+    assert!(
+        report
+            .changes()
+            .selector_invalidations()
+            .contains(&SelectorInvalidation::Siblings {
+                parent: model.root(),
+                traversal: SelectorTraversal::Canonical,
+            })
+    );
+    assert!(
+        report
+            .changes()
+            .selector_invalidations()
+            .contains(&SelectorInvalidation::Siblings {
+                parent: model.root(),
+                traversal: SelectorTraversal::ProjectedDefaultSlot,
+            })
+    );
+
+    let report = model
+        .apply(Patch::SetKind {
+            id: first,
+            kind: Kind::Element(tag("item")),
+        })
+        .unwrap();
+    assert!(
+        report
+            .changes()
+            .selector_invalidations()
+            .contains(&SelectorInvalidation::Metadata {
+                id: first,
+                facts: SelectorMetadataChange::empty().kind(),
+            })
+    );
+    assert!(
+        report
+            .changes()
+            .selector_invalidations()
+            .contains(&SelectorInvalidation::Siblings {
+                parent: model.root(),
+                traversal: SelectorTraversal::Canonical,
+            })
+    );
+    assert!(
+        report
+            .changes()
+            .selector_invalidations()
+            .contains(&SelectorInvalidation::Siblings {
+                parent: model.root(),
+                traversal: SelectorTraversal::ProjectedDefaultSlot,
+            })
+    );
+
+    let report = model
+        .apply(Patch::Replace {
+            id: first,
+            element: Element::tagged(tag("item"))
+                .with_key(key("a"))
+                .with_class(Class::new("replacement").unwrap()),
+            mode: ReplaceMode::AllowKindChange,
+        })
+        .unwrap();
+    assert!(
+        report
+            .changes()
+            .selector_invalidations()
+            .contains(&SelectorInvalidation::Metadata {
+                id: first,
+                facts: SelectorMetadataChange::empty()
+                    .key()
+                    .kind()
+                    .role()
+                    .label()
+                    .classes()
+                    .attributes()
+                    .text(),
+            })
+    );
+    assert!(
+        report
+            .changes()
+            .selector_invalidations()
+            .contains(&SelectorInvalidation::Siblings {
+                parent: first,
+                traversal: SelectorTraversal::Canonical,
+            })
+    );
+    assert!(
+        report
+            .changes()
+            .selector_invalidations()
+            .contains(&SelectorInvalidation::Siblings {
+                parent: model.root(),
+                traversal: SelectorTraversal::Canonical,
+            })
+    );
+    assert!(
+        report
+            .changes()
+            .selector_invalidations()
+            .contains(&SelectorInvalidation::Siblings {
+                parent: model.root(),
+                traversal: SelectorTraversal::ProjectedDefaultSlot,
+            })
+    );
+}
+
+#[test]
+fn selector_invalidation_reports_focus_runtime_state_pressure() {
+    let mut model = Model::new(
+        Element::root()
+            .with_child(element("section", "parent").with_child(element("button", "target"))),
+    )
+    .unwrap();
+    let parent = model
+        .snapshot()
+        .children(model.root())
+        .unwrap()
+        .next()
+        .unwrap();
+    let target = model.snapshot().children(parent).unwrap().next().unwrap();
+
+    let report = model.focus(Some(target)).unwrap();
+    assert!(
+        report
+            .changes()
+            .selector_invalidations()
+            .contains(&SelectorInvalidation::State { id: target })
+    );
+    assert!(
+        report
+            .changes()
+            .selector_invalidations()
+            .contains(&SelectorInvalidation::State { id: parent })
+    );
+}
+
+#[test]
+fn selector_invalidation_reports_projected_type_pressure_when_kind_changes() {
+    let mut model = Model::new(Element::root().with_child(element("host", "host"))).unwrap();
+    let host = model
+        .snapshot()
+        .children(model.root())
+        .unwrap()
+        .next()
+        .unwrap();
+    let slot = ProjectionSlot::default(host);
+
+    model
+        .apply_projection(ProjectionEdit::new(
+            slot.clone(),
+            ProjectionSource::Elements(vec![element("button", "run")]),
+            ProjectionReplaceMode::PreserveCompatible,
+        ))
+        .unwrap();
+    model.resolve_projection(slot.clone()).unwrap();
+    let projected = model
+        .snapshot()
+        .projected_children(slot.clone())
+        .unwrap()
+        .next()
+        .unwrap();
+
+    model
+        .apply_projection(ProjectionEdit::new(
+            slot.clone(),
+            ProjectionSource::Elements(vec![element("section", "run")]),
+            ProjectionReplaceMode::PreserveIdentity,
+        ))
+        .unwrap();
+    let report = model.resolve_projection(slot.clone()).unwrap();
+
+    assert_eq!(
+        model
+            .snapshot()
+            .projected_children(slot.clone())
+            .unwrap()
+            .next(),
+        Some(projected)
+    );
+    assert!(
+        report
+            .changes()
+            .selector_invalidations()
+            .contains(&SelectorInvalidation::Metadata {
+                id: projected,
+                facts: SelectorMetadataChange::empty().kind(),
+            })
+    );
+    assert!(
+        report
+            .changes()
+            .selector_invalidations()
+            .contains(&SelectorInvalidation::Siblings {
+                parent: host,
+                traversal: SelectorTraversal::ProjectedDefaultSlot,
+            })
+    );
+}
+
+#[test]
 fn pointer_capture_state_is_aggregate() {
     let mut model = Model::new(
         Element::root()

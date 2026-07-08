@@ -4,7 +4,8 @@ use super::{
     Attribute, ChangeFlags, ChangeSet, Command, Element, Error, ErrorCode, Event, Id, Key, KeyPath,
     Kind, Mutation, MutationEdit, Patch, Phase, PointerCapture, PointerId, Presence,
     ProjectionEdit, ProjectionReplaceMode, ProjectionSlot, ProjectionSource, ReplaceMode, Report,
-    Result, Route, RouteStep, State, VirtualProjection, transaction::Transaction,
+    Result, Route, RouteStep, SelectorInvalidation, SelectorMetadataChange, SelectorTraversal,
+    State, VirtualProjection, transaction::Transaction,
 };
 
 /// Monotonic retained model revision for snapshot cache identity.
@@ -250,6 +251,7 @@ impl Model {
             transaction.record_node(self, old);
             self.node_mut(old)?.state.focused = false;
             changes.change(old, ChangeFlags::empty().state().focus());
+            Self::invalidate_selector_state(&mut changes, old);
         }
         transaction.record_focus(self);
         self.focus = id;
@@ -257,6 +259,7 @@ impl Model {
             transaction.record_node(self, new);
             self.node_mut(new)?.state.focused = true;
             changes.change(new, ChangeFlags::empty().state().focus());
+            Self::invalidate_selector_state(&mut changes, new);
         }
         self.recompute_focus_within(transaction, &mut changes);
         Ok(changes)
@@ -551,6 +554,7 @@ impl Model {
             transaction.record_node(self, target);
             self.node_mut(target)?.state.pointer_captured = captured;
             changes.change(target, ChangeFlags::empty().state().pointer_capture());
+            Self::invalidate_selector_state(changes, target);
         }
         Ok(())
     }
@@ -656,6 +660,77 @@ impl Model {
             .ok_or_else(|| Error::new(ErrorCode::InvalidParent, "node is not a child of parent"))
     }
 
+    fn invalidate_selector_metadata(
+        changes: &mut ChangeSet,
+        id: Id,
+        facts: SelectorMetadataChange,
+    ) {
+        if facts != SelectorMetadataChange::empty() {
+            changes.selector_invalidation(SelectorInvalidation::Metadata { id, facts });
+        }
+    }
+
+    fn invalidate_selector_state(changes: &mut ChangeSet, id: Id) {
+        changes.selector_invalidation(SelectorInvalidation::State { id });
+    }
+
+    fn invalidate_selector_siblings(changes: &mut ChangeSet, parent: Id) {
+        changes.selector_invalidation(SelectorInvalidation::Siblings {
+            parent,
+            traversal: SelectorTraversal::Canonical,
+        });
+        changes.selector_invalidation(SelectorInvalidation::Siblings {
+            parent,
+            traversal: SelectorTraversal::ProjectedDefaultSlot,
+        });
+    }
+
+    fn invalidate_projected_selector_siblings(changes: &mut ChangeSet, parent: Id) {
+        changes.selector_invalidation(SelectorInvalidation::Siblings {
+            parent,
+            traversal: SelectorTraversal::ProjectedDefaultSlot,
+        });
+    }
+
+    fn selector_projected_parent_for_invalidation(&self, id: Id) -> Option<Id> {
+        let node = self.node(id).ok()?;
+        match &node.owner {
+            Owner::Projection { slot } => Some(slot.host()),
+            Owner::Root | Owner::Canonical { .. } => node.projected_parent,
+        }
+    }
+
+    fn projected_node_metadata_change(
+        old_element: &Element,
+        old_match_key: Option<&Key>,
+        new_element: &Element,
+        new_match_key: Option<&Key>,
+    ) -> SelectorMetadataChange {
+        let mut facts = SelectorMetadataChange::empty();
+        if old_element.kind() != new_element.kind() {
+            facts = facts.kind();
+        }
+        if old_match_key != new_match_key {
+            facts = facts.key();
+        }
+        if old_element.role() != new_element.role() {
+            facts = facts.role();
+        }
+        if old_element.label() != new_element.label() {
+            facts = facts.label();
+        }
+        if old_element.classes() != new_element.classes() {
+            facts = facts.classes();
+        }
+        if old_element.attributes() != new_element.attributes() {
+            facts = facts.attributes();
+        }
+        if old_element.text_content() != new_element.text_content() {
+            facts = facts.text();
+        }
+        facts
+    }
+
     fn ensure_unique_child_key(
         &self,
         parent: Id,
@@ -713,6 +788,7 @@ impl Model {
                 self.refresh_child_key_paths(parent, transaction)?;
                 changes.insert(id);
                 changes.change(parent, ChangeFlags::empty().structure());
+                Self::invalidate_selector_siblings(&mut changes, parent);
             }
             Patch::Replace { id, element, mode } => {
                 self.ensure_live(id)?;
@@ -725,6 +801,7 @@ impl Model {
                     ));
                 }
                 let parent = self.node(id)?.parent;
+                let projected_parent = self.selector_projected_parent_for_invalidation(id);
                 if let Some(parent) = parent {
                     self.ensure_unique_child_key(parent, element.key(), Some(id))?;
                 }
@@ -762,6 +839,25 @@ impl Model {
                     changes.insert(child_id);
                 }
                 changes.change(id, ChangeFlags::empty().structure().kind());
+                Self::invalidate_selector_metadata(
+                    &mut changes,
+                    id,
+                    SelectorMetadataChange::empty()
+                        .key()
+                        .kind()
+                        .role()
+                        .label()
+                        .classes()
+                        .attributes()
+                        .text(),
+                );
+                Self::invalidate_selector_siblings(&mut changes, id);
+                if let Some(parent) = parent {
+                    Self::invalidate_selector_siblings(&mut changes, parent);
+                }
+                if let Some(projected_parent) = projected_parent {
+                    Self::invalidate_projected_selector_siblings(&mut changes, projected_parent);
+                }
             }
             Patch::Remove { id } => {
                 if id == self.root {
@@ -777,6 +873,7 @@ impl Model {
                 self.node_mut(parent)?.children.retain(|child| *child != id);
                 self.remove_subtree(id, transaction, &mut changes)?;
                 changes.change(parent, ChangeFlags::empty().structure());
+                Self::invalidate_selector_siblings(&mut changes, parent);
             }
             Patch::Move { id, parent, index } => {
                 if id == self.root {
@@ -832,6 +929,8 @@ impl Model {
                 changes.move_node(id);
                 changes.change(old_parent, ChangeFlags::empty().structure());
                 changes.change(parent, ChangeFlags::empty().structure());
+                Self::invalidate_selector_siblings(&mut changes, old_parent);
+                Self::invalidate_selector_siblings(&mut changes, parent);
             }
             Patch::ReorderChildren { parent, children } => {
                 self.ensure_live(parent)?;
@@ -853,12 +952,29 @@ impl Model {
                 self.node_mut(parent)?.children = children;
                 self.refresh_child_key_paths(parent, transaction)?;
                 changes.change(parent, ChangeFlags::empty().structure());
+                Self::invalidate_selector_siblings(&mut changes, parent);
             }
             Patch::SetKind { id, kind } => {
                 if *self.node(id)?.element.kind() != kind {
+                    let parent = self.node(id)?.parent;
+                    let projected_parent = self.selector_projected_parent_for_invalidation(id);
                     transaction.record_node(self, id);
                     self.node_mut(id)?.element.set_kind(kind);
                     changes.change(id, ChangeFlags::empty().kind());
+                    Self::invalidate_selector_metadata(
+                        &mut changes,
+                        id,
+                        SelectorMetadataChange::empty().kind(),
+                    );
+                    if let Some(parent) = parent {
+                        Self::invalidate_selector_siblings(&mut changes, parent);
+                    }
+                    if let Some(projected_parent) = projected_parent {
+                        Self::invalidate_projected_selector_siblings(
+                            &mut changes,
+                            projected_parent,
+                        );
+                    }
                 }
             }
             Patch::SetRole { id, role } => {
@@ -866,6 +982,11 @@ impl Model {
                     transaction.record_node(self, id);
                     self.node_mut(id)?.element.set_role(role);
                     changes.change(id, ChangeFlags::empty().role());
+                    Self::invalidate_selector_metadata(
+                        &mut changes,
+                        id,
+                        SelectorMetadataChange::empty().role(),
+                    );
                 }
             }
             Patch::SetLabel { id, label } => {
@@ -873,6 +994,11 @@ impl Model {
                     transaction.record_node(self, id);
                     self.node_mut(id)?.element.set_label(label);
                     changes.change(id, ChangeFlags::empty().label());
+                    Self::invalidate_selector_metadata(
+                        &mut changes,
+                        id,
+                        SelectorMetadataChange::empty().label(),
+                    );
                 }
             }
             Patch::SetClasses { id, classes } => {
@@ -880,6 +1006,11 @@ impl Model {
                     transaction.record_node(self, id);
                     self.node_mut(id)?.element.set_classes(classes);
                     changes.change(id, ChangeFlags::empty().classes());
+                    Self::invalidate_selector_metadata(
+                        &mut changes,
+                        id,
+                        SelectorMetadataChange::empty().classes(),
+                    );
                 }
             }
             Patch::SetAttribute { id, name, value } => {
@@ -899,6 +1030,11 @@ impl Model {
                         .element
                         .set_attribute(Attribute { name, value });
                     changes.change(id, ChangeFlags::empty().attributes());
+                    Self::invalidate_selector_metadata(
+                        &mut changes,
+                        id,
+                        SelectorMetadataChange::empty().attributes(),
+                    );
                 }
             }
             Patch::RemoveAttribute { id, name } => {
@@ -912,6 +1048,11 @@ impl Model {
                     transaction.record_node(self, id);
                     self.node_mut(id)?.element.remove_attribute(&name);
                     changes.change(id, ChangeFlags::empty().attributes());
+                    Self::invalidate_selector_metadata(
+                        &mut changes,
+                        id,
+                        SelectorMetadataChange::empty().attributes(),
+                    );
                 }
             }
             Patch::SetText { id, text } => {
@@ -919,6 +1060,11 @@ impl Model {
                     transaction.record_node(self, id);
                     self.node_mut(id)?.element.set_text(text);
                     changes.change(id, ChangeFlags::empty().text());
+                    Self::invalidate_selector_metadata(
+                        &mut changes,
+                        id,
+                        SelectorMetadataChange::empty().text(),
+                    );
                 }
             }
             Patch::SetHooks { id, hooks } => {
@@ -940,6 +1086,7 @@ impl Model {
                         flags = flags.presence();
                     }
                     changes.change(id, flags);
+                    Self::invalidate_selector_state(&mut changes, id);
                     self.release_invalid_focus_and_capture(transaction, &mut changes);
                 }
             }
@@ -951,6 +1098,7 @@ impl Model {
                     transaction.record_node(self, id);
                     self.node_mut(id)?.state = after;
                     changes.change(id, ChangeFlags::empty().state().runtime_state());
+                    Self::invalidate_selector_state(&mut changes, id);
                     if self.node(id)?.state.disabled != before.disabled {
                         self.release_invalid_focus_and_capture(transaction, &mut changes);
                     }
@@ -1282,6 +1430,14 @@ impl Model {
             index,
             match_key,
         } = update;
+        let old_element = self.node(id)?.element.clone();
+        let old_match_key = self.node(id)?.match_key.clone();
+        let metadata_change = Self::projected_node_metadata_change(
+            &old_element,
+            old_match_key.as_ref(),
+            &element,
+            match_key.as_ref(),
+        );
         let children = element.take_children();
         let key_path = if let Some(key) = &match_key {
             self.node(slot.host())?
@@ -1294,7 +1450,6 @@ impl Model {
                 .projection_slot(slot)
                 .projected_index(index)
         };
-        let kind_changed = self.node(id)?.element.kind() != element.kind();
         transaction.record_node(self, id);
         self.remove_children(id, transaction, changes)?;
         transaction.record_node(self, id);
@@ -1320,10 +1475,14 @@ impl Model {
             changes.insert(child_id);
         }
         let mut flags = ChangeFlags::empty().projection();
-        if kind_changed {
+        if metadata_change.has_kind() {
             flags = flags.kind();
         }
         changes.change(id, flags);
+        Self::invalidate_selector_metadata(changes, id, metadata_change);
+        if metadata_change.has_kind() {
+            Self::invalidate_projected_selector_siblings(changes, slot.host());
+        }
         self.fail_at(Failpoint::AfterProjectedChildReuse)?;
         Ok(())
     }
@@ -1494,6 +1653,7 @@ impl Model {
                 transaction.record_node(self, focused);
                 self.node_mut(focused).expect("node checked").state.focused = false;
                 changes.change(focused, ChangeFlags::empty().state().focus());
+                Self::invalidate_selector_state(changes, focused);
             }
         }
         if cleared_focus {
@@ -1531,6 +1691,7 @@ impl Model {
                 transaction.record_node(self, id);
                 self.node_mut(id).expect("node checked").state.focus_within = should_focus_within;
                 changes.change(id, ChangeFlags::empty().state());
+                Self::invalidate_selector_state(changes, id);
             }
         }
     }

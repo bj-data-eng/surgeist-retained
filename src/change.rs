@@ -1,6 +1,129 @@
 use std::collections::BTreeMap;
 
-use super::{Command, Id, ProjectionSlot};
+use super::{Command, Id, ProjectionSlot, SelectorTraversal};
+
+/// Selector-facing metadata facts that changed for a retained node.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct SelectorMetadataChange {
+    kind: bool,
+    key: bool,
+    role: bool,
+    label: bool,
+    classes: bool,
+    attributes: bool,
+    text: bool,
+}
+
+impl SelectorMetadataChange {
+    #[must_use]
+    pub const fn empty() -> Self {
+        Self {
+            kind: false,
+            key: false,
+            role: false,
+            label: false,
+            classes: false,
+            attributes: false,
+            text: false,
+        }
+    }
+
+    #[must_use]
+    pub const fn kind(mut self) -> Self {
+        self.kind = true;
+        self
+    }
+
+    #[must_use]
+    pub const fn key(mut self) -> Self {
+        self.key = true;
+        self
+    }
+
+    #[must_use]
+    pub const fn role(mut self) -> Self {
+        self.role = true;
+        self
+    }
+
+    #[must_use]
+    pub const fn label(mut self) -> Self {
+        self.label = true;
+        self
+    }
+
+    #[must_use]
+    pub const fn classes(mut self) -> Self {
+        self.classes = true;
+        self
+    }
+
+    #[must_use]
+    pub const fn attributes(mut self) -> Self {
+        self.attributes = true;
+        self
+    }
+
+    #[must_use]
+    pub const fn text(mut self) -> Self {
+        self.text = true;
+        self
+    }
+
+    #[must_use]
+    pub const fn has_kind(self) -> bool {
+        self.kind
+    }
+
+    #[must_use]
+    pub const fn has_key(self) -> bool {
+        self.key
+    }
+
+    #[must_use]
+    pub const fn has_role(self) -> bool {
+        self.role
+    }
+
+    #[must_use]
+    pub const fn has_label(self) -> bool {
+        self.label
+    }
+
+    #[must_use]
+    pub const fn has_classes(self) -> bool {
+        self.classes
+    }
+
+    #[must_use]
+    pub const fn has_attributes(self) -> bool {
+        self.attributes
+    }
+
+    #[must_use]
+    pub const fn has_text(self) -> bool {
+        self.text
+    }
+}
+
+/// Selector recomputation pressure produced by retained mutations.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum SelectorInvalidation {
+    /// A node's directly matched metadata may have changed.
+    Metadata {
+        id: Id,
+        facts: SelectorMetadataChange,
+    },
+    /// Sibling/structural facts for children of this parent may have changed.
+    Siblings {
+        parent: Id,
+        traversal: SelectorTraversal,
+    },
+    /// A projection slot changed and projected selector traversal may need recomputation.
+    Projection { slot: ProjectionSlot },
+    /// Selector-visible retained state facts changed for one node.
+    State { id: Id },
+}
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct ChangeFlags {
@@ -225,6 +348,7 @@ pub struct ChangeSet {
     moved: Vec<Id>,
     changed: BTreeMap<Id, ChangeFlags>,
     projection_slots: Vec<ProjectionSlot>,
+    selector_invalidations: Vec<SelectorInvalidation>,
 }
 
 impl ChangeSet {
@@ -240,6 +364,7 @@ impl ChangeSet {
             && self.moved.is_empty()
             && self.changed.is_empty()
             && self.projection_slots.is_empty()
+            && self.selector_invalidations.is_empty()
     }
 
     #[must_use]
@@ -266,6 +391,11 @@ impl ChangeSet {
         &self.projection_slots
     }
 
+    #[must_use]
+    pub fn selector_invalidations(&self) -> &[SelectorInvalidation] {
+        &self.selector_invalidations
+    }
+
     pub(crate) fn insert(&mut self, id: Id) {
         push_unique(&mut self.inserted, id);
     }
@@ -286,7 +416,12 @@ impl ChangeSet {
     }
 
     pub(crate) fn change_projection_slot(&mut self, slot: ProjectionSlot) {
-        push_unique(&mut self.projection_slots, slot);
+        push_unique(&mut self.projection_slots, slot.clone());
+        self.selector_invalidation(SelectorInvalidation::Projection { slot });
+    }
+
+    pub(crate) fn selector_invalidation(&mut self, invalidation: SelectorInvalidation) {
+        push_unique(&mut self.selector_invalidations, invalidation);
     }
 
     pub(crate) fn merge(&mut self, other: Self) {
@@ -304,6 +439,9 @@ impl ChangeSet {
         }
         for slot in other.projection_slots {
             self.change_projection_slot(slot);
+        }
+        for invalidation in other.selector_invalidations {
+            self.selector_invalidation(invalidation);
         }
     }
 }

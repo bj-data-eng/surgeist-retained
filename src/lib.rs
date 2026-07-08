@@ -18,7 +18,7 @@ mod state;
 mod string;
 mod transaction;
 
-pub use change::{ChangeFlags, ChangeSet, Report};
+pub use change::{ChangeFlags, ChangeSet, Report, SelectorInvalidation, SelectorMetadataChange};
 pub use element::{Element, Kind, Role};
 pub use error::{Error, ErrorCode, Result};
 pub use event::{
